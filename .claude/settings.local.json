@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:youtu.be)",
+      "WebFetch(domain:www.youtube.com)",
+      "WebFetch(domain:noembed.com)",
+      "WebSearch",
+      "WebFetch(domain:support.miosalon.com)",
+      "WebFetch(domain:www.miosalon.com)",
+      "Read(//c/Users/jk academy/.claude/plans/**)",
+      "Bash(echo \"---EXIT: $?\")",
+      "Bash(npx create-next-app@14:*)",
+      "Bash(shopt -s dotglob)",
+      "Bash(mv miosalon-clone/* .)",
+      "Bash(mv miosalon-clone/.* .)",
+      "Bash(npm install:*)",
+      "Bash(npx next:*)",
+      "Bash(git init:*)",
+      "Bash(git branch:*)",
+      "Bash(gh auth:*)",
+      "Bash(where gh:*)",
+      "Bash(where git:*)",
+      "Bash(winget install:*)",
+      "Bash(export PATH=\"$PATH:/c/Program Files/GitHub CLI\")",
+      "Bash(gh --version)",
+      "Bash(git remote:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}

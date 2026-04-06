@@ -2,26 +2,55 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .sidebar-item {
+    @apply flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 rounded-lg
+           hover:bg-slate-700 hover:text-white transition-colors cursor-pointer;
+  }
+  .sidebar-item-active {
+    @apply bg-blue-600 text-white hover:bg-blue-600;
+  }
+  .stat-card {
+    @apply bg-white rounded-xl p-6 shadow-sm border border-slate-100;
+  }
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+/* react-big-calendar overrides */
+.rbc-calendar {
+  font-family: inherit;
+}
+
+.rbc-header {
+  @apply py-2 text-sm font-medium text-slate-600 border-slate-200;
+}
+
+.rbc-today {
+  @apply bg-blue-50;
+}
+
+.rbc-event {
+  @apply rounded-md text-xs px-1.5 py-0.5 border-0;
+}
+
+.rbc-toolbar button {
+  @apply text-sm px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100;
+}
+
+.rbc-toolbar button.rbc-active {
+  @apply bg-blue-600 text-white border-blue-600 hover:bg-blue-700;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
   }
 }

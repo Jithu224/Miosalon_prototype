@@ -1,101 +1,256 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+import { useMemo } from 'react';
+import { PageWrapper } from '@/components/layout/PageWrapper';
+import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { RevenueChart } from '@/components/charts/RevenueChart';
+import { AppointmentChart } from '@/components/charts/AppointmentChart';
+import { ServicePopularityChart } from '@/components/charts/ServicePopularityChart';
+import { revenueData, appointmentData, servicePopularity, recentActivity } from '@/data/mockDashboard';
+import { useAppointmentStore } from '@/store/useAppointmentStore';
+import { useClientStore } from '@/store/useClientStore';
+import { useInvoiceStore } from '@/store/useInvoiceStore';
+import { useStaffStore } from '@/store/useStaffStore';
+import { useServiceStore } from '@/store/useServiceStore';
+import { useHydration } from '@/hooks/useHydration';
+import { formatCurrency, formatTime } from '@/lib/utils';
+import {
+  HiOutlineBanknotes,
+  HiOutlineCalendarDays,
+  HiOutlineUserPlus,
+  HiOutlineDocumentText,
+  HiOutlineCalendar,
+  HiOutlineCreditCard,
+  HiOutlineUser,
+  HiOutlineStar,
+  HiOutlineCube,
+} from 'react-icons/hi2';
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+const statusVariant: Record<string, 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'purple'> = {
+  confirmed: 'success',
+  scheduled: 'info',
+  completed: 'success',
+  cancelled: 'danger',
+  'no-show': 'warning',
+  'in-progress': 'purple',
+};
+
+const activityIcons: Record<string, React.ReactNode> = {
+  appointment: <HiOutlineCalendar className="w-4 h-4 text-blue-500" />,
+  invoice: <HiOutlineCreditCard className="w-4 h-4 text-emerald-500" />,
+  client: <HiOutlineUser className="w-4 h-4 text-purple-500" />,
+  feedback: <HiOutlineStar className="w-4 h-4 text-yellow-500" />,
+  product: <HiOutlineCube className="w-4 h-4 text-orange-500" />,
+};
+
+export default function DashboardPage() {
+  const hydrated = useHydration();
+  const appointments = useAppointmentStore((s) => s.appointments);
+  const clients = useClientStore((s) => s.clients);
+  const invoices = useInvoiceStore((s) => s.invoices);
+  const staff = useStaffStore((s) => s.staff);
+  const services = useServiceStore((s) => s.services);
+
+  const todayStr = '2026-04-06';
+
+  const todayAppointments = useMemo(
+    () => appointments.filter((a) => a.date === todayStr),
+    [appointments]
+  );
+
+  const todayRevenue = useMemo(
+    () =>
+      invoices
+        .filter((inv) => inv.createdAt === todayStr && inv.status === 'paid')
+        .reduce((sum, inv) => sum + inv.grandTotal, 0),
+    [invoices]
+  );
+
+  const pendingInvoices = useMemo(
+    () => invoices.filter((inv) => inv.status === 'draft' || inv.status === 'partial').length,
+    [invoices]
+  );
+
+  const newClientsThisWeek = useMemo(() => {
+    const weekAgo = new Date('2026-03-30');
+    return clients.filter((c) => new Date(c.createdAt) >= weekAgo).length;
+  }, [clients]);
+
+  if (!hydrated) {
+    return (
+      <PageWrapper title="Dashboard" subtitle="Welcome back! Here's what's happening today.">
+        <div className="space-y-6 animate-pulse">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-28 bg-slate-200 rounded-xl" />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="h-80 bg-slate-200 rounded-xl" />
+            <div className="h-80 bg-slate-200 rounded-xl" />
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      </PageWrapper>
+    );
+  }
+
+  const statCards = [
+    {
+      label: "Today's Revenue",
+      value: formatCurrency(todayRevenue || 45200),
+      change: '+12.5%',
+      positive: true,
+      icon: <HiOutlineBanknotes className="w-6 h-6 text-blue-600" />,
+      bg: 'bg-blue-50',
+    },
+    {
+      label: "Today's Appointments",
+      value: String(todayAppointments.length),
+      change: '+8.3%',
+      positive: true,
+      icon: <HiOutlineCalendarDays className="w-6 h-6 text-emerald-600" />,
+      bg: 'bg-emerald-50',
+    },
+    {
+      label: 'New Clients This Week',
+      value: String(newClientsThisWeek || 6),
+      change: '+15.0%',
+      positive: true,
+      icon: <HiOutlineUserPlus className="w-6 h-6 text-purple-600" />,
+      bg: 'bg-purple-50',
+    },
+    {
+      label: 'Pending Invoices',
+      value: String(pendingInvoices || 1),
+      change: '-3.2%',
+      positive: false,
+      icon: <HiOutlineDocumentText className="w-6 h-6 text-orange-600" />,
+      bg: 'bg-orange-50',
+    },
+  ];
+
+  const getClientName = (clientId: string) => {
+    const client = clients.find((c) => c.id === clientId);
+    return client ? `${client.firstName} ${client.lastName}` : 'Unknown';
+  };
+
+  const getStaffName = (staffId: string) => {
+    const member = staff.find((s) => s.id === staffId);
+    return member ? `${member.firstName} ${member.lastName}` : 'Unknown';
+  };
+
+  const getServiceNames = (serviceItems: { serviceId: string }[]) => {
+    return serviceItems
+      .map((si) => {
+        const svc = services.find((s) => s.id === si.serviceId);
+        return svc ? svc.name : si.serviceId;
+      })
+      .join(', ');
+  };
+
+  return (
+    <PageWrapper title="Dashboard" subtitle="Welcome back! Here's what's happening today.">
+      <div className="space-y-6">
+        {/* Row 1: Stat Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {statCards.map((stat) => (
+            <div
+              key={stat.label}
+              className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex items-start gap-4"
+            >
+              <div className={`${stat.bg} p-3 rounded-lg`}>{stat.icon}</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-slate-500">{stat.label}</p>
+                <p className="text-2xl font-bold text-slate-900 mt-0.5">{stat.value}</p>
+                <Badge variant={stat.positive ? 'success' : 'danger'} className="mt-1">
+                  {stat.change}
+                </Badge>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Row 2: Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card title="Revenue (30 Days)">
+            <RevenueChart data={revenueData} />
+          </Card>
+          <Card title="Appointments (7 Days)">
+            <AppointmentChart data={appointmentData} />
+          </Card>
+        </div>
+
+        {/* Row 3: Today's Appointments + Service Popularity */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card title="Today's Appointments" padding={false}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100">
+                    <th className="text-left py-3 px-6 text-slate-500 font-medium">Time</th>
+                    <th className="text-left py-3 px-6 text-slate-500 font-medium">Client</th>
+                    <th className="text-left py-3 px-6 text-slate-500 font-medium">Services</th>
+                    <th className="text-left py-3 px-6 text-slate-500 font-medium">Staff</th>
+                    <th className="text-left py-3 px-6 text-slate-500 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {todayAppointments.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="text-center py-8 text-slate-400">
+                        No appointments today
+                      </td>
+                    </tr>
+                  ) : (
+                    todayAppointments.map((apt) => (
+                      <tr key={apt.id} className="border-b border-slate-50 hover:bg-slate-50">
+                        <td className="py-3 px-6 whitespace-nowrap">
+                          {formatTime(apt.startTime)}
+                        </td>
+                        <td className="py-3 px-6 font-medium text-slate-900">
+                          {getClientName(apt.clientId)}
+                        </td>
+                        <td className="py-3 px-6 text-slate-600 max-w-[200px] truncate">
+                          {getServiceNames(apt.services)}
+                        </td>
+                        <td className="py-3 px-6 text-slate-600">
+                          {getStaffName(apt.staffId)}
+                        </td>
+                        <td className="py-3 px-6">
+                          <Badge variant={statusVariant[apt.status] || 'neutral'}>
+                            {apt.status}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+          <Card title="Service Popularity">
+            <ServicePopularityChart data={servicePopularity} />
+          </Card>
+        </div>
+
+        {/* Row 4: Recent Activity */}
+        <Card title="Recent Activity">
+          <div className="space-y-4">
+            {recentActivity.map((item) => (
+              <div key={item.id} className="flex items-start gap-3">
+                <div className="mt-0.5 p-2 bg-slate-50 rounded-lg">
+                  {activityIcons[item.type] || <HiOutlineCalendar className="w-4 h-4 text-slate-400" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-slate-700">{item.message}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{item.time}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+    </PageWrapper>
   );
 }
