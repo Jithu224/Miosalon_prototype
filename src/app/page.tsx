@@ -1,13 +1,11 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Card } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
-import { RevenueChart } from '@/components/charts/RevenueChart';
-import { AppointmentChart } from '@/components/charts/AppointmentChart';
 import { ServicePopularityChart } from '@/components/charts/ServicePopularityChart';
-import { revenueData, appointmentData, servicePopularity, recentActivity } from '@/data/mockDashboard';
+import { RevenueChart } from '@/components/charts/RevenueChart';
+import { revenueData, servicePopularity, recentActivity } from '@/data/mockDashboard';
 import { useAppointmentStore } from '@/store/useAppointmentStore';
 import { useClientStore } from '@/store/useClientStore';
 import { useInvoiceStore } from '@/store/useInvoiceStore';
@@ -15,17 +13,20 @@ import { useStaffStore } from '@/store/useStaffStore';
 import { useServiceStore } from '@/store/useServiceStore';
 import { useHydration } from '@/hooks/useHydration';
 import { formatCurrency, formatTime } from '@/lib/utils';
+import { Badge } from '@/components/ui/Badge';
 import {
   HiOutlineBanknotes,
   HiOutlineCalendarDays,
   HiOutlineUserPlus,
-  HiOutlineDocumentText,
+  HiOutlineUsers,
   HiOutlineCalendar,
   HiOutlineCreditCard,
   HiOutlineUser,
   HiOutlineStar,
   HiOutlineCube,
 } from 'react-icons/hi2';
+
+type FilterTab = 'last30' | 'today' | 'yesterday' | 'scheduled';
 
 const statusVariant: Record<string, 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'purple'> = {
   confirmed: 'success',
@@ -46,6 +47,10 @@ const activityIcons: Record<string, React.ReactNode> = {
 
 export default function DashboardPage() {
   const hydrated = useHydration();
+  const [activeFilter, setActiveFilter] = useState<FilterTab>('last30');
+  const [dateFrom, setDateFrom] = useState('2026-03-07');
+  const [dateTo, setDateTo] = useState('2026-04-06');
+
   const appointments = useAppointmentStore((s) => s.appointments);
   const clients = useClientStore((s) => s.clients);
   const invoices = useInvoiceStore((s) => s.invoices);
@@ -53,82 +58,55 @@ export default function DashboardPage() {
   const services = useServiceStore((s) => s.services);
 
   const todayStr = '2026-04-06';
+  const yesterdayStr = '2026-04-05';
+
+  // Filtered data based on active tab
+  const filteredAppointments = useMemo(() => {
+    switch (activeFilter) {
+      case 'today':
+        return appointments.filter((a) => a.date === todayStr);
+      case 'yesterday':
+        return appointments.filter((a) => a.date === yesterdayStr);
+      case 'scheduled':
+        return appointments.filter((a) => a.date === todayStr && a.status === 'scheduled');
+      case 'last30':
+      default:
+        return appointments;
+    }
+  }, [appointments, activeFilter]);
+
+  const filteredInvoices = useMemo(() => {
+    switch (activeFilter) {
+      case 'today':
+        return invoices.filter((inv) => inv.createdAt === todayStr && inv.status === 'paid');
+      case 'yesterday':
+        return invoices.filter((inv) => inv.createdAt === yesterdayStr && inv.status === 'paid');
+      case 'scheduled':
+        return invoices.filter((inv) => inv.createdAt === todayStr && inv.status === 'paid');
+      case 'last30':
+      default:
+        return invoices.filter((inv) => inv.status === 'paid');
+    }
+  }, [invoices, activeFilter]);
+
+  const totalSales = useMemo(
+    () => filteredInvoices.reduce((sum, inv) => sum + inv.grandTotal, 0),
+    [filteredInvoices]
+  );
+
+  const walkInClients = useMemo(() => {
+    return filteredAppointments.filter((a) => a.notes?.toLowerCase().includes('walk-in') || a.notes?.toLowerCase().includes('walkin')).length;
+  }, [filteredAppointments]);
+
+  const newClients = useMemo(() => {
+    const weekAgo = new Date('2026-03-30');
+    return clients.filter((c) => new Date(c.createdAt) >= weekAgo).length;
+  }, [clients]);
 
   const todayAppointments = useMemo(
     () => appointments.filter((a) => a.date === todayStr),
     [appointments]
   );
-
-  const todayRevenue = useMemo(
-    () =>
-      invoices
-        .filter((inv) => inv.createdAt === todayStr && inv.status === 'paid')
-        .reduce((sum, inv) => sum + inv.grandTotal, 0),
-    [invoices]
-  );
-
-  const pendingInvoices = useMemo(
-    () => invoices.filter((inv) => inv.status === 'draft' || inv.status === 'partial').length,
-    [invoices]
-  );
-
-  const newClientsThisWeek = useMemo(() => {
-    const weekAgo = new Date('2026-03-30');
-    return clients.filter((c) => new Date(c.createdAt) >= weekAgo).length;
-  }, [clients]);
-
-  if (!hydrated) {
-    return (
-      <PageWrapper title="Dashboard" subtitle="Welcome back! Here's what's happening today.">
-        <div className="space-y-6 animate-pulse">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-28 bg-slate-200 rounded-xl" />
-            ))}
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="h-80 bg-slate-200 rounded-xl" />
-            <div className="h-80 bg-slate-200 rounded-xl" />
-          </div>
-        </div>
-      </PageWrapper>
-    );
-  }
-
-  const statCards = [
-    {
-      label: "Today's Revenue",
-      value: formatCurrency(todayRevenue || 45200),
-      change: '+12.5%',
-      positive: true,
-      icon: <HiOutlineBanknotes className="w-6 h-6 text-blue-600" />,
-      bg: 'bg-blue-50',
-    },
-    {
-      label: "Today's Appointments",
-      value: String(todayAppointments.length),
-      change: '+8.3%',
-      positive: true,
-      icon: <HiOutlineCalendarDays className="w-6 h-6 text-emerald-600" />,
-      bg: 'bg-emerald-50',
-    },
-    {
-      label: 'New Clients This Week',
-      value: String(newClientsThisWeek || 6),
-      change: '+15.0%',
-      positive: true,
-      icon: <HiOutlineUserPlus className="w-6 h-6 text-purple-600" />,
-      bg: 'bg-purple-50',
-    },
-    {
-      label: 'Pending Invoices',
-      value: String(pendingInvoices || 1),
-      change: '-3.2%',
-      positive: false,
-      icon: <HiOutlineDocumentText className="w-6 h-6 text-orange-600" />,
-      bg: 'bg-orange-50',
-    },
-  ];
 
   const getClientName = (clientId: string) => {
     const client = clients.find((c) => c.id === clientId);
@@ -149,105 +127,212 @@ export default function DashboardPage() {
       .join(', ');
   };
 
+  if (!hydrated) {
+    return (
+      <PageWrapper title="Dashboard" subtitle="Welcome back! Here's what's happening today.">
+        <div className="space-y-6 animate-pulse">
+          <div className="h-10 bg-slate-200 rounded-lg w-2/3" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-28 bg-slate-200 rounded-xl" />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="h-80 bg-slate-200 rounded-xl" />
+            <div className="h-80 bg-slate-200 rounded-xl" />
+          </div>
+        </div>
+      </PageWrapper>
+    );
+  }
+
+  const filterTabs: { key: FilterTab; label: string }[] = [
+    { key: 'last30', label: 'Last 30 days' },
+    { key: 'today', label: 'Today' },
+    { key: 'yesterday', label: 'Yesterday' },
+    { key: 'scheduled', label: 'Scheduled Today' },
+  ];
+
   return (
     <PageWrapper title="Dashboard" subtitle="Welcome back! Here's what's happening today.">
       <div className="space-y-6">
-        {/* Row 1: Stat Cards */}
+
+        {/* Filter Tabs Row */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            {filterTabs.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveFilter(tab.key)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  activeFilter === tab.key
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <span className="text-slate-400 text-sm">to</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+        </div>
+
+        {/* Stat Cards Row - MioSalon colored cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {statCards.map((stat) => (
-            <div
-              key={stat.label}
-              className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex items-start gap-4"
-            >
-              <div className={`${stat.bg} p-3 rounded-lg`}>{stat.icon}</div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-slate-500">{stat.label}</p>
-                <p className="text-2xl font-bold text-slate-900 mt-0.5">{stat.value}</p>
-                <Badge variant={stat.positive ? 'success' : 'danger'} className="mt-1">
-                  {stat.change}
-                </Badge>
-              </div>
+          {/* Sales Card - Yellow */}
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 relative overflow-hidden">
+            <div className="absolute top-3 right-3 opacity-20">
+              <HiOutlineBanknotes className="w-12 h-12 text-amber-500" />
             </div>
-          ))}
+            <div>
+              <p className="text-sm font-medium text-amber-700">Sales</p>
+              <p className="text-3xl font-bold text-amber-900 mt-2">
+                {formatCurrency(totalSales || 7590)}
+              </p>
+              <p className="text-xs text-amber-600 mt-1">Total Sales</p>
+            </div>
+          </div>
+
+          {/* Appointments Card - Blue */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 relative overflow-hidden">
+            <div className="absolute top-3 right-3 opacity-20">
+              <HiOutlineCalendarDays className="w-12 h-12 text-blue-500" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-blue-700">Appointments</p>
+              <p className="text-3xl font-bold text-blue-900 mt-2">
+                {filteredAppointments.length || 12}
+              </p>
+              <p className="text-xs text-blue-600 mt-1">Scheduled Appointments</p>
+            </div>
+          </div>
+
+          {/* Walk-in Clients Card - Red/Pink */}
+          <div className="bg-red-50 border border-red-200 rounded-xl p-5 relative overflow-hidden">
+            <div className="absolute top-3 right-3 opacity-20">
+              <HiOutlineUsers className="w-12 h-12 text-red-500" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-red-700">Walk-in Clients</p>
+              <p className="text-3xl font-bold text-red-900 mt-2">
+                {walkInClients || 3}
+              </p>
+              <p className="text-xs text-red-600 mt-1">Walk-in Visits</p>
+            </div>
+          </div>
+
+          {/* New Clients Card - Green */}
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 relative overflow-hidden">
+            <div className="absolute top-3 right-3 opacity-20">
+              <HiOutlineUserPlus className="w-12 h-12 text-emerald-500" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-emerald-700">New Clients</p>
+              <p className="text-3xl font-bold text-emerald-900 mt-2">
+                {newClients || 4}
+              </p>
+              <p className="text-xs text-emerald-600 mt-1">Repeat &amp; New</p>
+            </div>
+          </div>
         </div>
 
-        {/* Row 2: Charts */}
+        {/* Charts Row: Donut Chart + Sales Insight */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card title="Revenue (30 Days)">
-            <RevenueChart data={revenueData} />
-          </Card>
-          <Card title="Appointments (7 Days)">
-            <AppointmentChart data={appointmentData} />
-          </Card>
-        </div>
-
-        {/* Row 3: Today's Appointments + Service Popularity */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card title="Today's Appointments" padding={false}>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-100">
-                    <th className="text-left py-3 px-6 text-slate-500 font-medium">Time</th>
-                    <th className="text-left py-3 px-6 text-slate-500 font-medium">Client</th>
-                    <th className="text-left py-3 px-6 text-slate-500 font-medium">Services</th>
-                    <th className="text-left py-3 px-6 text-slate-500 font-medium">Staff</th>
-                    <th className="text-left py-3 px-6 text-slate-500 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {todayAppointments.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="text-center py-8 text-slate-400">
-                        No appointments today
-                      </td>
-                    </tr>
-                  ) : (
-                    todayAppointments.map((apt) => (
-                      <tr key={apt.id} className="border-b border-slate-50 hover:bg-slate-50">
-                        <td className="py-3 px-6 whitespace-nowrap">
-                          {formatTime(apt.startTime)}
-                        </td>
-                        <td className="py-3 px-6 font-medium text-slate-900">
-                          {getClientName(apt.clientId)}
-                        </td>
-                        <td className="py-3 px-6 text-slate-600 max-w-[200px] truncate">
-                          {getServiceNames(apt.services)}
-                        </td>
-                        <td className="py-3 px-6 text-slate-600">
-                          {getStaffName(apt.staffId)}
-                        </td>
-                        <td className="py-3 px-6">
-                          <Badge variant={statusVariant[apt.status] || 'neutral'}>
-                            {apt.status}
-                          </Badge>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-          <Card title="Service Popularity">
+          <Card title="Revenue by Service">
             <ServicePopularityChart data={servicePopularity} />
           </Card>
+          <Card title="Sales Insight">
+            <RevenueChart data={revenueData} />
+          </Card>
         </div>
 
-        {/* Row 4: Recent Activity */}
+        {/* Today's Appointments Table */}
+        <Card title="Today's Appointments" padding={false}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100">
+                  <th className="text-left py-3 px-6 text-slate-500 font-medium">Time</th>
+                  <th className="text-left py-3 px-6 text-slate-500 font-medium">Client</th>
+                  <th className="text-left py-3 px-6 text-slate-500 font-medium">Services</th>
+                  <th className="text-left py-3 px-6 text-slate-500 font-medium">Staff</th>
+                  <th className="text-left py-3 px-6 text-slate-500 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {todayAppointments.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="text-center py-12 text-slate-400">
+                      <div className="flex flex-col items-center gap-2">
+                        <HiOutlineCalendarDays className="w-10 h-10 text-slate-300" />
+                        <p className="font-medium">No Data Available</p>
+                        <p className="text-xs">No appointments scheduled for today</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  todayAppointments.map((apt) => (
+                    <tr key={apt.id} className="border-b border-slate-50 hover:bg-slate-50">
+                      <td className="py-3 px-6 whitespace-nowrap">
+                        {formatTime(apt.startTime)}
+                      </td>
+                      <td className="py-3 px-6 font-medium text-slate-900">
+                        {getClientName(apt.clientId)}
+                      </td>
+                      <td className="py-3 px-6 text-slate-600 max-w-[200px] truncate">
+                        {getServiceNames(apt.services)}
+                      </td>
+                      <td className="py-3 px-6 text-slate-600">
+                        {getStaffName(apt.staffId)}
+                      </td>
+                      <td className="py-3 px-6">
+                        <Badge variant={statusVariant[apt.status] || 'neutral'}>
+                          {apt.status}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        {/* Recent Activity */}
         <Card title="Recent Activity">
           <div className="space-y-4">
-            {recentActivity.map((item) => (
-              <div key={item.id} className="flex items-start gap-3">
-                <div className="mt-0.5 p-2 bg-slate-50 rounded-lg">
-                  {activityIcons[item.type] || <HiOutlineCalendar className="w-4 h-4 text-slate-400" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-slate-700">{item.message}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{item.time}</p>
-                </div>
+            {recentActivity.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                <p className="font-medium">No SalesInsight Data</p>
+                <p className="text-xs mt-1">No recent activity to show</p>
               </div>
-            ))}
+            ) : (
+              recentActivity.map((item) => (
+                <div key={item.id} className="flex items-start gap-3">
+                  <div className="mt-0.5 p-2 bg-slate-50 rounded-lg">
+                    {activityIcons[item.type] || <HiOutlineCalendar className="w-4 h-4 text-slate-400" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-slate-700">{item.message}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{item.time}</p>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </Card>
       </div>

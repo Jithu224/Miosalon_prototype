@@ -1,62 +1,25 @@
 import {
-  HiOutlineHome,
+  HiOutlineShoppingBag,
   HiOutlineCalendarDays,
-  HiOutlineBolt,
+  HiOutlineHome,
   HiOutlineUsers,
   HiOutlineUserGroup,
-  HiOutlineScissors,
-  HiOutlineCube,
-  HiOutlineDocumentText,
-  HiOutlineChartBar,
   HiOutlineMegaphone,
-  HiOutlineGift,
-  HiOutlineUserPlus,
   HiOutlineChatBubbleLeft,
   HiOutlineGlobeAlt,
   HiOutlineCog6Tooth,
 } from 'react-icons/hi2';
 
 export const NAV_ITEMS = [
-  {
-    group: 'Main',
-    items: [
-      { label: 'Dashboard', href: '/', icon: HiOutlineHome },
-      { label: 'Appointments', href: '/appointments', icon: HiOutlineCalendarDays },
-      { label: 'Quick Sale', href: '/quick-sale', icon: HiOutlineBolt },
-    ],
-  },
-  {
-    group: 'Management',
-    items: [
-      { label: 'Clients', href: '/clients', icon: HiOutlineUsers },
-      { label: 'Staff', href: '/staff', icon: HiOutlineUserGroup },
-      { label: 'Services', href: '/services', icon: HiOutlineScissors },
-      { label: 'Inventory', href: '/inventory', icon: HiOutlineCube },
-    ],
-  },
-  {
-    group: 'Finance',
-    items: [
-      { label: 'Billing', href: '/billing', icon: HiOutlineDocumentText },
-      { label: 'Reports', href: '/reports', icon: HiOutlineChartBar },
-    ],
-  },
-  {
-    group: 'Growth',
-    items: [
-      { label: 'Marketing', href: '/marketing', icon: HiOutlineMegaphone },
-      { label: 'Loyalty', href: '/loyalty', icon: HiOutlineGift },
-      { label: 'Leads', href: '/leads', icon: HiOutlineUserPlus },
-      { label: 'Feedback', href: '/feedback', icon: HiOutlineChatBubbleLeft },
-      { label: 'Online Booking', href: '/online-booking', icon: HiOutlineGlobeAlt },
-    ],
-  },
-  {
-    group: 'System',
-    items: [
-      { label: 'Settings', href: '/settings', icon: HiOutlineCog6Tooth },
-    ],
-  },
+  { label: 'Quick Sale', href: '/quick-sale', icon: HiOutlineShoppingBag },
+  { label: 'Appointments', href: '/appointments', icon: HiOutlineCalendarDays },
+  { label: 'Dashboard', href: '/', icon: HiOutlineHome },
+  { label: 'Customers', href: '/clients', icon: HiOutlineUsers },
+  { label: 'Staff', href: '/staff', icon: HiOutlineUserGroup },
+  { label: 'Campaigns', href: '/marketing', icon: HiOutlineMegaphone },
+  { label: 'Feedback', href: '/feedback', icon: HiOutlineChatBubbleLeft },
+  { label: 'Online Booking', href: '/online-booking', icon: HiOutlineGlobeAlt },
+  { label: 'Settings', href: '/settings', icon: HiOutlineCog6Tooth },
 ];
 
 export const APPOINTMENT_STATUS_COLORS: Record<string, string> = {

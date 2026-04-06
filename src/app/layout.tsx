@@ -26,13 +26,14 @@ export default function RootLayout({
       <body className={`${geistSans.variable} font-sans antialiased`}>
         <div className="flex h-screen overflow-hidden">
           <Sidebar />
-          <div className="flex-1 flex flex-col ml-[260px] overflow-hidden">
+          <div className="flex-1 flex flex-col ml-16 overflow-hidden">
             <Header />
             <main className="flex-1 overflow-y-auto bg-slate-50">
               {children}
             </main>
           </div>
         </div>
+
         <Toaster position="top-right" />
       </body>
     </html>
