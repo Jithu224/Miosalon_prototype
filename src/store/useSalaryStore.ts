@@ -7,6 +7,7 @@ import {
   AttendanceEntry,
   CustomDeduction,
   SalaryRecord,
+  CommissionProfile,
 } from '@/types/salary';
 import {
   mockSalaryProfiles,
@@ -15,6 +16,7 @@ import {
   mockAttendance,
   mockCustomDeductions,
   mockSalaryRecords,
+  mockCommissionProfiles,
 } from '@/data/mockSalaryData';
 import { calculateFullSalary, calculateAdvanceRecovery } from '@/lib/salaryCalculation';
 import { useStaffStore } from '@/store/useStaffStore';
@@ -29,11 +31,18 @@ interface SalaryStore {
   attendanceEntries: AttendanceEntry[];
   customDeductions: CustomDeduction[];
   salaryRecords: SalaryRecord[];
+  commissionProfiles: CommissionProfile[];
 
   // Salary Profile CRUD
   addSalaryProfile: (profile: SalaryProfile) => void;
   updateSalaryProfile: (staffId: string, data: Partial<SalaryProfile>) => void;
   getSalaryProfile: (staffId: string) => SalaryProfile | undefined;
+
+  // Commission Profile CRUD
+  addCommissionProfile: (profile: CommissionProfile) => void;
+  updateCommissionProfile: (id: string, data: Partial<CommissionProfile>) => void;
+  deleteCommissionProfile: (id: string) => void;
+  getCommissionProfile: (id: string) => CommissionProfile | undefined;
 
   // Advance CRUD
   addAdvance: (advance: SalaryAdvance) => void;
@@ -77,6 +86,7 @@ export const useSalaryStore = create<SalaryStore>()(
       attendanceEntries: mockAttendance,
       customDeductions: mockCustomDeductions,
       salaryRecords: mockSalaryRecords,
+      commissionProfiles: mockCommissionProfiles,
 
       // ── Salary Profile CRUD ─────────────────────────────────────────────
       addSalaryProfile: (profile) =>
@@ -91,6 +101,23 @@ export const useSalaryStore = create<SalaryStore>()(
 
       getSalaryProfile: (staffId) =>
         get().salaryProfiles.find((p) => p.staffId === staffId),
+
+      // ── Commission Profile CRUD ─────────────────────────────────────────
+      addCommissionProfile: (profile) =>
+        set((s) => ({ commissionProfiles: [...s.commissionProfiles, profile] })),
+
+      updateCommissionProfile: (id, data) =>
+        set((s) => ({
+          commissionProfiles: s.commissionProfiles.map((p) =>
+            p.id === id ? { ...p, ...data } : p
+          ),
+        })),
+
+      deleteCommissionProfile: (id) =>
+        set((s) => ({ commissionProfiles: s.commissionProfiles.filter((p) => p.id !== id) })),
+
+      getCommissionProfile: (id) =>
+        get().commissionProfiles.find((p) => p.id === id),
 
       // ── Advance CRUD ────────────────────────────────────────────────────
       addAdvance: (advance) =>
@@ -242,6 +269,11 @@ export const useSalaryStore = create<SalaryStore>()(
           (d) => d.staffId === staffId && d.month === month
         );
 
+        // 6b. Look up commission profile if assigned
+        const commissionProfile = profile.commissionProfileId
+          ? state.commissionProfiles.find((cp) => cp.id === profile.commissionProfileId)
+          : undefined;
+
         // 7. Call calculateFullSalary from lib
         const result = calculateFullSalary({
           profile,
@@ -256,6 +288,7 @@ export const useSalaryStore = create<SalaryStore>()(
           incentiveRules,
           pendingAdvances,
           customDeductions: customDeds,
+          commissionProfile,
         });
 
         // 8. Create SalaryRecord — preserve status if approved/paid

@@ -27,7 +27,10 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(vercel:*)"
+      "Bash(vercel:*)",
+      "Bash(node capture-others.js)",
+      "Bash(ls prototype_screenshots/competitors/*.png)",
+      "Bash(ls prototype_screenshots/competitors/*.md)"
     ]
   }
 }

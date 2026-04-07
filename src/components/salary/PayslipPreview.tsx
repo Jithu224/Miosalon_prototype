@@ -12,6 +12,9 @@ interface PayslipPreviewProps {
   employmentType: string;
   payStructure: string;
   salonName?: string;
+  attendance?: { totalWorkingDays: number; daysPresent: number; daysAbsent: number; halfDays: number };
+  periodStart?: string; // "01 Apr 2026"
+  periodEnd?: string; // "30 Apr 2026"
 }
 
 export function PayslipPreview({
@@ -23,6 +26,9 @@ export function PayslipPreview({
   employmentType,
   payStructure,
   salonName = 'Mia Salon & Spa',
+  attendance,
+  periodStart,
+  periodEnd,
 }: PayslipPreviewProps) {
   return (
     <div className="bg-white border border-slate-200 rounded-lg max-w-2xl mx-auto print:border-0 print:rounded-none print:max-w-none">
@@ -42,6 +48,26 @@ export function PayslipPreview({
         <div><span className="text-slate-500">Employment:</span> <span className="font-medium capitalize">{employmentType.replace('-', ' ')}</span></div>
         <div><span className="text-slate-500">Pay Type:</span> <span className="font-medium capitalize">{payStructure.replace('-', ' ')}</span></div>
       </div>
+
+      {/* Pay Period & Attendance */}
+      {(periodStart || attendance) && (
+        <div className="border-b border-slate-200 px-6 py-3">
+          {periodStart && periodEnd && (
+            <div className="text-sm mb-2">
+              <span className="text-slate-500">Pay Period:</span>{' '}
+              <span className="font-medium">{periodStart} &mdash; {periodEnd}</span>
+            </div>
+          )}
+          {attendance && (
+            <div className="grid grid-cols-4 gap-2 text-sm">
+              <div><span className="text-slate-500">Working Days:</span> <span className="font-medium">{attendance.totalWorkingDays}</span></div>
+              <div><span className="text-slate-500">Present:</span> <span className="font-medium">{attendance.daysPresent}</span></div>
+              <div><span className="text-slate-500">Absent:</span> <span className="font-medium">{attendance.daysAbsent}</span></div>
+              <div><span className="text-slate-500">Half Days:</span> <span className="font-medium">{attendance.halfDays}</span></div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Earnings */}
       <div className="border-b border-slate-200 px-6 py-4">

@@ -12,6 +12,7 @@ import { Modal } from '@/components/ui/Modal';
 import { DataTable } from '@/components/data-table/DataTable';
 import { useSalaryStore } from '@/store/useSalaryStore';
 import { useStaffStore } from '@/store/useStaffStore';
+import { useRoleStore, ROLE_PERMISSIONS } from '@/store/useRoleStore';
 import { useHydration } from '@/hooks/useHydration';
 import { formatCurrency } from '@/lib/utils';
 import { Staff } from '@/types/staff';
@@ -60,6 +61,8 @@ const payCycleOptions = [
 
 export default function SalarySetupPage() {
   const hydrated = useHydration();
+  const { role } = useRoleStore();
+  const perms = ROLE_PERMISSIONS[role];
   const { staff } = useStaffStore();
   const { salaryProfiles, addSalaryProfile, updateSalaryProfile, getSalaryProfile } = useSalaryStore();
 
@@ -72,6 +75,17 @@ export default function SalarySetupPage() {
       <div className="p-6">
         <div className="h-64 bg-slate-200 rounded animate-pulse" />
       </div>
+    );
+  }
+
+  if (!perms.canConfigureSalary) {
+    return (
+      <PageWrapper title="Access Denied">
+        <div className="bg-white rounded-xl border p-12 text-center">
+          <p className="text-slate-500">You don&apos;t have permission to access salary setup.</p>
+          <Button href="/salary-calculator" className="mt-4">Back to Dashboard</Button>
+        </div>
+      </PageWrapper>
     );
   }
 

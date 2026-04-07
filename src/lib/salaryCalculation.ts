@@ -1,17 +1,52 @@
-import { SalaryProfile, AttendanceEntry, IncentiveRule, SalaryAdvance, CustomDeduction, SalaryEarning, SalaryDeduction } from '@/types/salary';
+import { SalaryProfile, AttendanceEntry, IncentiveRule, SalaryAdvance, CustomDeduction, SalaryEarning, SalaryDeduction, CommissionProfile } from '@/types/salary';
 
 // Calculate commission from invoices for a staff member in a given month
 export function calculateCommission(
-  staffCommissionType: string,
-  staffCommissionRate: number,
+  commissionType: string,
+  commissionRate: number,
   invoiceRevenue: number,
-  invoiceCount: number
+  invoiceCount: number,
+  commissionProfile?: CommissionProfile
 ): number {
-  if (staffCommissionType === 'percentage') {
-    return Math.round(invoiceRevenue * (staffCommissionRate / 100));
+  // If a commission profile exists, use it
+  if (commissionProfile) {
+    if (commissionProfile.type === 'flat-percentage') {
+      return Math.round(invoiceRevenue * ((commissionProfile.flatRate || 0) / 100));
+    }
+    if (commissionProfile.type === 'flat-fixed') {
+      return Math.round((commissionProfile.flatRate || 0) * invoiceCount);
+    }
+    if (commissionProfile.type === 'tiered-slab' && commissionProfile.tiers) {
+      // Cascading/graduated: each revenue portion earns its own tier's rate
+      let total = 0;
+      let remaining = invoiceRevenue;
+      for (const tier of commissionProfile.tiers.sort((a, b) => a.minRevenue - b.minRevenue)) {
+        const tierRange = (tier.maxRevenue || Infinity) - tier.minRevenue;
+        const applicable = Math.min(remaining, tierRange);
+        if (applicable <= 0) break;
+        total += applicable * (tier.rate / 100);
+        remaining -= applicable;
+      }
+      return Math.round(total);
+    }
+    if (commissionProfile.type === 'tiered-highest' && commissionProfile.tiers) {
+      // Highest qualified: entire revenue gets the highest qualifying tier's rate
+      let applicableRate = 0;
+      for (const tier of commissionProfile.tiers.sort((a, b) => a.minRevenue - b.minRevenue)) {
+        if (invoiceRevenue >= tier.minRevenue) {
+          applicableRate = tier.rate;
+        }
+      }
+      return Math.round(invoiceRevenue * (applicableRate / 100));
+    }
   }
-  if (staffCommissionType === 'fixed') {
-    return staffCommissionRate * invoiceCount;
+
+  // Fallback to simple staff-level commission
+  if (commissionType === 'percentage') {
+    return Math.round(invoiceRevenue * (commissionRate / 100));
+  }
+  if (commissionType === 'fixed') {
+    return commissionRate * invoiceCount;
   }
   return 0;
 }
@@ -58,9 +93,11 @@ export function calculateIncentives(
       if (rule.type === 'attendance-bonus') {
         return attendance ? attendance.daysAbsent === 0 : false;
       }
-      if (rule.type === 'target-bonus' && rule.condition) {
+      if (rule.type === 'target-bonus') {
+        if (!rule.condition) return false; // Don't award if no condition
         const match = rule.condition.match(/revenue\s*>\s*(\d+)/);
         if (match) return totalRevenue > Number(match[1]);
+        return false; // Don't award if condition malformed
       }
       return true; // custom bonuses always apply
     })
@@ -103,6 +140,7 @@ export function calculateFullSalary(params: {
   incentiveRules: IncentiveRule[];
   pendingAdvances: SalaryAdvance[];
   customDeductions: CustomDeduction[];
+  commissionProfile?: CommissionProfile;
 }): {
   baseSalary: number;
   commission: number;
@@ -113,13 +151,13 @@ export function calculateFullSalary(params: {
   totalDeductions: number;
   netSalary: number;
 } {
-  const { profile, commissionType, commissionRate, joinDate, month, invoiceRevenue, invoiceCount, tips, attendance, incentiveRules, pendingAdvances, customDeductions } = params;
+  const { profile, commissionType, commissionRate, joinDate, month, invoiceRevenue, invoiceCount, tips, attendance, incentiveRules, pendingAdvances, customDeductions, commissionProfile } = params;
 
   const totalWorkingDays = attendance?.totalWorkingDays || 26;
 
   // Earnings
   const baseSalary = profile.payStructure === 'commission-only' ? 0 : calculateProRataBase(profile.baseSalary, joinDate, month, totalWorkingDays);
-  const commission = profile.payStructure === 'fixed-only' ? 0 : calculateCommission(commissionType, commissionRate, invoiceRevenue, invoiceCount);
+  const commission = profile.payStructure === 'fixed-only' ? 0 : calculateCommission(commissionType, commissionRate, invoiceRevenue, invoiceCount, commissionProfile);
   const incentives = calculateIncentives(incentiveRules, attendance, invoiceRevenue);
   const totalIncentives = incentives.reduce((s, i) => s + i.amount, 0);
   const grossSalary = baseSalary + commission + totalIncentives + tips;
@@ -128,7 +166,7 @@ export function calculateFullSalary(params: {
   const deductions: SalaryDeduction[] = [];
 
   // Advance recovery
-  const { totalRecovery } = calculateAdvanceRecovery(pendingAdvances);
+  const { totalRecovery } = calculateAdvanceRecovery(pendingAdvances, Math.round(grossSalary * 0.5));
   if (totalRecovery > 0) deductions.push({ label: 'Salary Advance Recovery', amount: totalRecovery });
 
   // Attendance deduction

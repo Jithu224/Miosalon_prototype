@@ -1,3 +1,19 @@
+export interface CommissionTier {
+  minRevenue: number;
+  maxRevenue: number; // use Infinity or 999999999 for "and above"
+  rate: number; // percentage
+}
+
+export interface CommissionProfile {
+  id: string;
+  name: string; // e.g., "Senior Stylist Plan", "Junior Plan"
+  type: 'flat-percentage' | 'flat-fixed' | 'tiered-slab' | 'tiered-highest';
+  flatRate?: number; // for flat types
+  tiers?: CommissionTier[]; // for tiered types
+  includeProducts: boolean;
+  includeTips: boolean;
+}
+
 export interface SalaryProfile {
   staffId: string;
   employmentType: 'full-time' | 'part-time' | 'contract' | 'daily-wage';
@@ -9,6 +25,7 @@ export interface SalaryProfile {
   bankName?: string;
   accountNumber?: string;
   ifscCode?: string;
+  commissionProfileId?: string;
 }
 
 export interface SalaryAdvance {
@@ -69,6 +86,6 @@ export interface SalaryRecord {
   deductions: SalaryDeduction[];
   totalDeductions: number;
   netSalary: number;
-  status: 'draft' | 'approved' | 'paid';
+  status: 'draft' | 'submitted' | 'approved' | 'paid';
   calculatedAt: string;
 }

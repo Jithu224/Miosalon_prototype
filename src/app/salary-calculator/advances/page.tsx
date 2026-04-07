@@ -13,6 +13,7 @@ import { Modal } from '@/components/ui/Modal';
 import { DataTable } from '@/components/data-table/DataTable';
 import { useSalaryStore } from '@/store/useSalaryStore';
 import { useStaffStore } from '@/store/useStaffStore';
+import { useRoleStore, ROLE_PERMISSIONS } from '@/store/useRoleStore';
 import { useHydration } from '@/hooks/useHydration';
 import { formatCurrency, formatDate, generateId } from '@/lib/utils';
 import { SalaryAdvance } from '@/types/salary';
@@ -26,6 +27,8 @@ import {
 
 export default function SalaryAdvancesPage() {
   const hydrated = useHydration();
+  const { role } = useRoleStore();
+  const perms = ROLE_PERMISSIONS[role];
   const { advances, addAdvance } = useSalaryStore();
   const { staff } = useStaffStore();
 
@@ -169,7 +172,9 @@ export default function SalaryAdvancesPage() {
       subtitle="Track and manage salary advances"
       actions={
         <div className="flex items-center gap-3">
-          <Button onClick={() => setIsModalOpen(true)}>Record Advance</Button>
+          {perms.canRecordAdvances && (
+            <Button onClick={() => setIsModalOpen(true)}>Record Advance</Button>
+          )}
           <Button variant="outline" href="/salary-calculator">
             <HiOutlineArrowLeft className="w-4 h-4" />
             Back

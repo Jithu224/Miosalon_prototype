@@ -31,8 +31,9 @@ import { useStaffStore } from '@/store/useStaffStore';
 import { useRoleStore, ROLE_PERMISSIONS } from '@/store/useRoleStore';
 import { formatCurrency, formatMonth, generateId } from '@/lib/utils';
 
-const statusBadgeVariant: Record<string, 'info' | 'success' | 'neutral'> = {
+const statusBadgeVariant: Record<string, 'info' | 'success' | 'neutral' | 'warning'> = {
   draft: 'info',
+  submitted: 'warning',
   approved: 'success',
   paid: 'neutral',
 };
@@ -77,7 +78,7 @@ export default function StaffSalaryDetailPage() {
   const [confirmAction, setConfirmAction] = useState<'approve' | 'paid' | null>(null);
 
   // Subscribe to ARRAYS directly so React re-renders when store updates
-  const { role } = useRoleStore();
+  const { role, staffId: roleStaffId } = useRoleStore();
   const perms = ROLE_PERMISSIONS[role];
   const staff = useStaffStore((s) => s.staff).find((s) => s.id === staffId);
   const salaryRecords = useSalaryStore((s) => s.salaryRecords);
@@ -212,6 +213,17 @@ export default function StaffSalaryDetailPage() {
     );
   }
 
+  if (!perms.canViewAllStaff && staffId !== roleStaffId) {
+    return (
+      <PageWrapper title="Access Denied">
+        <div className="bg-white rounded-xl border p-12 text-center">
+          <p className="text-slate-500">You can only view your own salary details.</p>
+          <Button href="/salary-calculator" className="mt-4">Back to Dashboard</Button>
+        </div>
+      </PageWrapper>
+    );
+  }
+
   return (
     <PageWrapper title={staffName} subtitle={formatMonth(month)}>
       <style>{`
@@ -243,7 +255,15 @@ export default function StaffSalaryDetailPage() {
               Recalculate
             </Button>
           )}
-          {perms.canApproveSalary && record?.status === 'draft' && (
+          {role === 'manager' && record?.status === 'draft' && (
+            <Button variant="outline" onClick={() => {
+              updateSalaryRecord(record.id, { status: 'submitted' });
+              toast.success('Submitted for owner approval');
+            }}>
+              Submit for Approval
+            </Button>
+          )}
+          {perms.canApproveSalary && (record?.status === 'draft' || record?.status === 'submitted') && (
             <Button variant="success" onClick={() => setConfirmAction('approve')}>
               <HiOutlineCheckCircle className="w-4 h-4" />
               Approve
@@ -262,6 +282,13 @@ export default function StaffSalaryDetailPage() {
         </div>
       </div>
 
+      {/* Edit lock warning */}
+      {record && (record.status === 'approved' || record.status === 'paid') && (
+        <div className="mb-4 p-3 rounded-lg text-sm bg-amber-50 border border-amber-200 text-amber-700 no-print">
+          This salary has been {record.status}. Editing is locked.
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="mb-6 no-print">
         <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
@@ -273,10 +300,12 @@ export default function StaffSalaryDetailPage() {
             title="Salary not calculated yet"
             description="Click Recalculate above to generate the salary for this staff member, or go back and use Calculate All."
             action={
-              <Button onClick={handleRecalculate}>
-                <HiOutlineCalculator className="w-4 h-4" />
-                Calculate Now
-              </Button>
+              perms.canCalculateSalary ? (
+                <Button onClick={handleRecalculate}>
+                  <HiOutlineCalculator className="w-4 h-4" />
+                  Calculate Now
+                </Button>
+              ) : undefined
             }
           />
         </div>
@@ -395,10 +424,10 @@ export default function StaffSalaryDetailPage() {
           {activeTab === 'attendance' && (
             <Card title="Attendance Details">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
-                <Input label="Total Working Days" type="number" min={0} max={31} value={attendanceForm.totalWorkingDays} onChange={(e) => setAttendanceForm((p) => ({ ...p, totalWorkingDays: parseInt(e.target.value) || 0 }))} disabled={!perms.canEditDeductions} />
-                <Input label="Days Present" type="number" min={0} max={31} value={attendanceForm.daysPresent} onChange={(e) => setAttendanceForm((p) => ({ ...p, daysPresent: parseInt(e.target.value) || 0 }))} disabled={!perms.canEditDeductions} />
-                <Input label="Days Absent" type="number" min={0} max={31} value={attendanceForm.daysAbsent} onChange={(e) => setAttendanceForm((p) => ({ ...p, daysAbsent: parseInt(e.target.value) || 0 }))} disabled={!perms.canEditDeductions} />
-                <Input label="Half Days" type="number" min={0} max={31} value={attendanceForm.halfDays} onChange={(e) => setAttendanceForm((p) => ({ ...p, halfDays: parseInt(e.target.value) || 0 }))} disabled={!perms.canEditDeductions} />
+                <Input label="Total Working Days" type="number" min={0} max={31} value={attendanceForm.totalWorkingDays} onChange={(e) => setAttendanceForm((p) => ({ ...p, totalWorkingDays: parseInt(e.target.value) || 0 }))} disabled={!perms.canEditDeductions || (record != null && record.status !== 'draft')} />
+                <Input label="Days Present" type="number" min={0} max={31} value={attendanceForm.daysPresent} onChange={(e) => setAttendanceForm((p) => ({ ...p, daysPresent: parseInt(e.target.value) || 0 }))} disabled={!perms.canEditDeductions || (record != null && record.status !== 'draft')} />
+                <Input label="Days Absent" type="number" min={0} max={31} value={attendanceForm.daysAbsent} onChange={(e) => setAttendanceForm((p) => ({ ...p, daysAbsent: parseInt(e.target.value) || 0 }))} disabled={!perms.canEditDeductions || (record != null && record.status !== 'draft')} />
+                <Input label="Half Days" type="number" min={0} max={31} value={attendanceForm.halfDays} onChange={(e) => setAttendanceForm((p) => ({ ...p, halfDays: parseInt(e.target.value) || 0 }))} disabled={!perms.canEditDeductions || (record != null && record.status !== 'draft')} />
               </div>
               <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg max-w-2xl">
                 <div className="flex justify-between">
@@ -409,7 +438,7 @@ export default function StaffSalaryDetailPage() {
                   ({formatCurrency(profile?.baseSalary || 0)} / {attendanceForm.totalWorkingDays} days) x {attendanceForm.daysAbsent} absent + {attendanceForm.halfDays} half days
                 </p>
               </div>
-              {perms.canEditDeductions && (
+              {perms.canEditDeductions && (!record || record.status === 'draft') && (
                 <div className="mt-6">
                   <Button onClick={handleSaveAttendance}>Save Attendance</Button>
                   <p className="text-xs text-slate-400 mt-2">Salary is automatically recalculated when you save.</p>
@@ -429,7 +458,7 @@ export default function StaffSalaryDetailPage() {
                         <span className="text-sm font-medium text-slate-700">{ded.label}</span>
                         <div className="flex items-center gap-3">
                           <span className="text-sm font-medium text-red-600">{formatCurrency(ded.amount)}</span>
-                          {perms.canEditDeductions && (
+                          {perms.canEditDeductions && (!record || record.status === 'draft') && (
                             <button onClick={() => handleRemoveDeduction(ded.id)} className="p-1 text-slate-400 hover:text-red-600">
                               <HiOutlineTrash className="w-4 h-4" />
                             </button>
@@ -441,7 +470,7 @@ export default function StaffSalaryDetailPage() {
                 ) : (
                   <p className="text-sm text-slate-400 mb-6">No custom deductions for this month.</p>
                 )}
-                {perms.canEditDeductions && (
+                {perms.canEditDeductions && (!record || record.status === 'draft') && (
                   <div className="border-t border-slate-200 pt-4">
                     <h4 className="text-sm font-medium text-slate-700 mb-3">Add Deduction</h4>
                     <div className="flex items-end gap-3">
@@ -508,6 +537,14 @@ export default function StaffSalaryDetailPage() {
                   joinDate={staff.joinDate}
                   employmentType={profile?.employmentType || 'full-time'}
                   payStructure={profile?.payStructure || 'fixed-only'}
+                  attendance={attendance ? {
+                    totalWorkingDays: attendance.totalWorkingDays,
+                    daysPresent: attendance.daysPresent,
+                    daysAbsent: attendance.daysAbsent,
+                    halfDays: attendance.halfDays,
+                  } : undefined}
+                  periodStart={`01 ${formatMonth(month)}`}
+                  periodEnd={`${new Date(parseInt(month.split('-')[0]), parseInt(month.split('-')[1]), 0).getDate()} ${formatMonth(month)}`}
                 />
               </div>
             </div>

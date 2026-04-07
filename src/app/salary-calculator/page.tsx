@@ -9,6 +9,7 @@ import {
   HiOutlineArrowDownTray,
   HiOutlineCog6Tooth,
   HiOutlineBanknotes,
+  HiOutlineDocumentDuplicate,
 } from 'react-icons/hi2';
 
 import { useHydration } from '@/hooks/useHydration';
@@ -19,6 +20,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { MonthSelector } from '@/components/salary/MonthSelector';
 import { SalaryStatCards } from '@/components/salary/SalaryStatCards';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Card } from '@/components/ui/Card';
 import { DataTable } from '@/components/data-table/DataTable';
 import { useSalaryStore } from '@/store/useSalaryStore';
 import { useStaffStore } from '@/store/useStaffStore';
@@ -27,8 +29,9 @@ import { formatCurrency, formatMonth } from '@/lib/utils';
 import { exportSalaryToCSV } from '@/lib/exportUtils';
 import { SalaryRecord } from '@/types/salary';
 
-const statusBadgeVariant: Record<string, 'info' | 'success' | 'neutral'> = {
+const statusBadgeVariant: Record<string, 'info' | 'success' | 'neutral' | 'warning'> = {
   draft: 'info',
+  submitted: 'warning',
   approved: 'success',
   paid: 'neutral',
 };
@@ -44,6 +47,7 @@ export default function SalaryCalculatorPage() {
   const staff = useStaffStore((s) => s.staff);
   const salaryRecords = useSalaryStore((s) => s.salaryRecords);
   const salaryProfiles = useSalaryStore((s) => s.salaryProfiles);
+  const attendanceEntries = useSalaryStore((s) => s.attendanceEntries);
   const calculateAllSalaries = useSalaryStore((s) => s.calculateAllSalaries);
   const calculateSalary = useSalaryStore((s) => s.calculateSalary);
 
@@ -73,8 +77,28 @@ export default function SalaryCalculatorPage() {
       totalCommissions: records.reduce((sum, r) => sum + r.commission, 0),
       totalDeductions: records.reduce((sum, r) => sum + r.totalDeductions, 0),
       staffCount: records.length,
+      avgNetSalary: records.length > 0 ? Math.round(records.reduce((sum, r) => sum + r.netSalary, 0) / records.length) : 0,
     };
   }, [records]);
+
+  // Previous month comparison
+  const getPrevMonth = (m: string) => {
+    const [y, mo] = m.split('-').map(Number);
+    const d = new Date(y, mo - 2, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  };
+
+  const prevMonth = getPrevMonth(month);
+  const prevRecords = useMemo(() => salaryRecords.filter((r) => r.month === prevMonth), [salaryRecords, prevMonth]);
+  const prevStats = useMemo(() => {
+    return {
+      totalOutflow: prevRecords.reduce((sum, r) => sum + r.netSalary, 0),
+      totalCommissions: prevRecords.reduce((sum, r) => sum + r.commission, 0),
+      totalDeductions: prevRecords.reduce((sum, r) => sum + r.totalDeductions, 0),
+      staffCount: prevRecords.length,
+      avgNetSalary: prevRecords.length > 0 ? Math.round(prevRecords.reduce((sum, r) => sum + r.netSalary, 0) / prevRecords.length) : 0,
+    };
+  }, [prevRecords]);
 
   const handleCalculateAll = () => {
     const results = calculateAllSalaries(month);
@@ -97,7 +121,7 @@ export default function SalaryCalculatorPage() {
     Object.entries(staffMap).forEach(([id, s]) => {
       staffNames[id] = s.name;
     });
-    exportSalaryToCSV(records, staffNames, month);
+    exportSalaryToCSV(records, staffNames, month, attendanceEntries);
     toast.success('CSV exported successfully');
   };
 
@@ -241,6 +265,12 @@ export default function SalaryCalculatorPage() {
             Export CSV
           </Button>
         )}
+        {perms.canExport && records.length > 0 && (
+          <Button variant="outline" href={`/salary-calculator/bulk-payslips?month=${month}`}>
+            <HiOutlineDocumentDuplicate className="w-4 h-4" />
+            Bulk Payslips
+          </Button>
+        )}
         {perms.canConfigureSalary && (
           <Button variant="outline" href="/salary-calculator/setup">
             <HiOutlineCog6Tooth className="w-4 h-4" />
@@ -251,6 +281,11 @@ export default function SalaryCalculatorPage() {
           <Button variant="outline" href="/salary-calculator/advances">
             <HiOutlineBanknotes className="w-4 h-4" />
             Advances
+          </Button>
+        )}
+        {perms.canConfigureSalary && (
+          <Button variant="outline" href="/salary-calculator/incentives">
+            Incentives
           </Button>
         )}
       </div>
@@ -282,16 +317,65 @@ export default function SalaryCalculatorPage() {
             description="Configure salary profiles in Setup, then click Calculate All to generate salary records."
             action={
               <div className="flex items-center gap-3">
-                <Button variant="outline" href="/salary-calculator/setup">
-                  Go to Setup
-                </Button>
-                <Button onClick={handleCalculateAll}>
-                  <HiOutlineCalculator className="w-4 h-4" />
-                  Calculate All
-                </Button>
+                {perms.canConfigureSalary && (
+                  <Button variant="outline" href="/salary-calculator/setup">
+                    Go to Setup
+                  </Button>
+                )}
+                {perms.canCalculateSalary && (
+                  <Button onClick={handleCalculateAll}>
+                    <HiOutlineCalculator className="w-4 h-4" />
+                    Calculate All
+                  </Button>
+                )}
               </div>
             }
           />
+        </div>
+      )}
+
+      {/* Month-over-Month Comparison */}
+      {records.length > 0 && (
+        <div className="mt-6">
+          <Card title="Month-over-Month Comparison">
+            {prevRecords.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50">
+                      <th className="py-2 px-4 text-left text-xs font-semibold text-slate-500 uppercase">Metric</th>
+                      <th className="py-2 px-4 text-right text-xs font-semibold text-slate-500 uppercase">{formatMonth(prevMonth)}</th>
+                      <th className="py-2 px-4 text-right text-xs font-semibold text-slate-500 uppercase">{formatMonth(month)}</th>
+                      <th className="py-2 px-4 text-right text-xs font-semibold text-slate-500 uppercase">Change</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {([
+                      { label: 'Total Outflow', prev: prevStats.totalOutflow, curr: stats.totalOutflow, isCurrency: true },
+                      { label: 'Total Commissions', prev: prevStats.totalCommissions, curr: stats.totalCommissions, isCurrency: true },
+                      { label: 'Total Deductions', prev: prevStats.totalDeductions, curr: stats.totalDeductions, isCurrency: true },
+                      { label: 'Staff Count', prev: prevStats.staffCount, curr: stats.staffCount, isCurrency: false },
+                      { label: 'Average Net Salary', prev: prevStats.avgNetSalary, curr: stats.avgNetSalary, isCurrency: true },
+                    ] as const).map((row) => {
+                      const change = row.prev > 0 ? ((row.curr - row.prev) / row.prev) * 100 : 0;
+                      const changeStr = row.prev > 0 ? `${change >= 0 ? '+' : ''}${change.toFixed(1)}%` : 'N/A';
+                      const changeColor = change > 0 ? 'text-emerald-600' : change < 0 ? 'text-red-600' : 'text-slate-500';
+                      return (
+                        <tr key={row.label} className="border-b border-slate-100">
+                          <td className="py-2 px-4 text-slate-700 font-medium">{row.label}</td>
+                          <td className="py-2 px-4 text-right">{row.isCurrency ? formatCurrency(row.prev) : row.prev}</td>
+                          <td className="py-2 px-4 text-right font-medium">{row.isCurrency ? formatCurrency(row.curr) : row.curr}</td>
+                          <td className={`py-2 px-4 text-right font-semibold ${changeColor}`}>{changeStr}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400">No previous month data for comparison.</p>
+            )}
+          </Card>
         </div>
       )}
     </PageWrapper>
