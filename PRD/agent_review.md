@@ -12,27 +12,29 @@ The Salary Calculator module implements a complete salary lifecycle (Setup → C
 
 **Overall Score: 6.5/10** (down from 7.5 in previous review due to deeper analysis)
 
+**PRD Compliance: 5 fully implemented, 7 partial, 1 missing (out of 13 Must-Have FRs)**
+
 ---
 
 ## 1. PRD Compliance — Must-Have Features (FR-01 to FR-13)
 
 | ID | Feature | Status | Evidence |
 |---|---|---|---|
-| FR-01 | Staff Salary Profile Setup | **IMPLEMENTED** | `setup/page.tsx` — employment type, base salary, pay cycle, bank details |
+| FR-01 | Staff Salary Profile Setup | **PARTIAL** | `setup/page.tsx` — employment type, base salary, pay cycle, bank details. Missing: join date not in form, custom period dates have no UI |
 | FR-02 | Pay Structure Selection | **IMPLEMENTED** | Select: fixed-only/fixed-commission/commission-only/daily-wage. Base salary hidden for commission-only |
-| FR-03 | Commission Auto-Pull | **PARTIAL** | Auto-pulls from invoice store, BUT: no tiered commission, no service-vs-product split, single flat rate only |
-| FR-04 | Incentive/Bonus Config | **PARTIAL** | Attendance bonus + target bonus + custom bonus exist, BUT: target bonus regex can auto-qualify on malformed conditions, custom bonuses apply perpetually (no month filtering) |
-| FR-05 | Salary Advance Tracking | **IMPLEMENTED** | Full advance CRUD, balance tracking, auto-recovery on "Mark Paid". BUT: no recovery cap (PRD says 50% of gross max) |
-| FR-06 | Attendance-Based Deduction | **IMPLEMENTED** | Manual days present/absent/half-days. Formula correct: (base/workingDays) × absent. Auto-recalculates on save |
-| FR-07 | Custom Deduction Field | **IMPLEMENTED** | Add/remove deductions with label+amount. Auto-recalculates on change |
+| FR-03 | Commission Auto-Pull | **IMPLEMENTED** | Auto-pulls from invoice store. Gap: no tiered commission, no service-vs-product split, single flat rate |
+| FR-04 | Incentive/Bonus Config | **PARTIAL** | Store + calculation logic exists for 3 bonus types. **BUT: No UI screen to configure rules** — only mock data. Target bonus regex auto-qualifies on malformed conditions |
+| FR-05 | Salary Advance Tracking | **PARTIAL** | Full advance CRUD, balance tracking, deferred recovery on "Mark Paid". Missing: no partial deduction control, no recovery cap (PRD says 50% of gross max) |
+| FR-06 | Attendance-Based Deduction | **IMPLEMENTED** | Manual days present/absent/half-days. Formula correct. Auto-recalculates on save. Gap: no validation days add up |
+| FR-07 | Custom Deduction Field | **IMPLEMENTED** | Add/remove deductions with label+amount. Auto-recalculates on change. Gap: cannot edit existing deductions |
 | FR-08 | Salary Calculation Engine | **IMPLEMENTED** | `calculateFullSalary()` computes correct formula. <3 seconds for all staff |
 | FR-09 | Monthly Salary Summary | **IMPLEMENTED** | Dashboard with stat cards + DataTable showing all staff with sortable columns |
-| FR-10 | Payslip Generation | **PARTIAL** | PayslipPreview component renders correctly. BUT: "Download PDF" just calls `window.print()` |
-| FR-11 | Bulk Payslip Generation | **NOT IMPLEMENTED** | No bulk payslip button. Only individual payslip via detail page |
-| FR-12 | Export to Excel/PDF | **PARTIAL** | CSV export works. No Excel (.xlsx) format. No PDF export (only print) |
-| FR-13 | Pay Period Config | **PARTIAL** | `payCycle` field exists (monthly/custom). BUT: custom period start/end fields defined in type but never used in calculation |
+| FR-10 | Payslip Generation | **PARTIAL** | PayslipPreview component renders correctly. Missing: "Download PDF" is fake (window.print), no attendance summary, no pay period dates, no logo |
+| FR-11 | Bulk Payslip Generation | **MISSING** | No bulk payslip feature anywhere. Must visit each staff individually |
+| FR-12 | Export to Excel/PDF | **PARTIAL** | CSV export works. No Excel (.xlsx) or PDF format. No per-staff detail export |
+| FR-13 | Pay Period Config | **PARTIAL** | `payCycle` field exists (monthly/custom). Custom period UI fields defined in type but never exposed in form |
 
-**Compliance Rate: 7 full + 5 partial + 1 missing = 54% fully implemented**
+**Compliance Rate: 5 fully implemented, 7 partial, 1 missing = 38% fully implemented**
 
 ---
 
@@ -164,6 +166,41 @@ The Salary Calculator module implements a complete salary lifecycle (Setup → C
 3. **Pro-rata mixes calendar days with working days** — numerator uses calendar days from join date, denominator uses working days count
 4. **Custom bonuses apply perpetually** — "Festival Bonus" has no expiry; applies every month
 5. **Invoice date attribution** — uses `createdAt` not `paidAt`; an invoice created March 31 but paid April 2 is attributed to March
+
+---
+
+## 6b. Additional Issues from Owner Flow Agent
+
+### Approval Flow Gaps
+| # | Issue | Severity |
+|---|-------|----------|
+| 1 | **No edit lock after approval** — deductions/attendance can still be changed on approved/paid records. PRD says "approved salary is locked" | CRITICAL |
+| 2 | **Can skip approval** — Mark Paid available directly from Draft status (PRD: Draft → Submitted → Approved → Paid) | HIGH |
+| 3 | **No "Submitted" status** — PRD FR-15 has Draft → Submitted → Approved → Paid; prototype skips Submitted | MEDIUM |
+| 4 | **Recalculating paid salary** changes amounts silently — mismatches what was actually paid to staff | HIGH |
+
+### Missing UI Screens
+| # | Screen | Impact |
+|---|--------|--------|
+| 1 | **Incentive Rules management page** — store CRUD exists but NO UI to add/edit/delete incentive rules | HIGH — FR-04 is unusable without this |
+| 2 | **Bulk payslip generation** — no button or screen exists anywhere | HIGH — FR-11 completely missing |
+| 3 | **Custom pay cycle date selector** — "Custom" option in dropdown reveals nothing | MEDIUM |
+
+### Payslip Missing Fields (vs PRD Example)
+| Field | PRD Shows | Prototype Shows |
+|-------|-----------|-----------------|
+| Pay period date range | "01 Apr — 30 Apr 2026" | Month name only |
+| Attendance summary | "Working Days: 26 \| Present: 24 \| Absent: 2" | Not shown |
+| Salon logo | Yes | Not shown |
+| Service-wise commission | "80 haircuts × ₹500 × 15% = ₹6,000" | Total commission only |
+
+### Data Validation Gaps
+| # | Issue |
+|---|-------|
+| 1 | Attendance days don't validate: present + absent + halfDays could exceed totalWorkingDays |
+| 2 | No warning when net salary hits ₹0 from excessive deductions |
+| 3 | Cannot edit existing custom deductions — must delete and re-add |
+| 4 | Commission rate not configurable from Setup page — lives in separate Staff module with no link |
 
 ---
 
