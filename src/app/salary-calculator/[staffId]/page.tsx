@@ -133,9 +133,18 @@ export default function StaffSalaryDetailPage() {
     setConfirmAction(null);
   };
 
+  // Auto-recalculate helper — updates salary record immediately after any change
+  const recalcAfterChange = useCallback(() => {
+    // Small delay to let store update settle before recalculating
+    setTimeout(() => {
+      calculateSalary(staffId, month);
+    }, 50);
+  }, [calculateSalary, staffId, month]);
+
   const handleSaveAttendance = () => {
     setAttendanceEntry({ staffId, month, ...attendanceForm });
-    toast.success('Attendance saved — click Recalculate to update salary');
+    recalcAfterChange();
+    toast.success('Attendance saved — salary updated');
   };
 
   const handleAddDeduction = () => {
@@ -146,12 +155,14 @@ export default function StaffSalaryDetailPage() {
     addCustomDeduction({ id: generateId(), staffId, month, label, amount });
     setNewDeductionLabel('');
     setNewDeductionAmount('');
-    toast.success('Deduction added — click Recalculate to update salary');
+    recalcAfterChange();
+    toast.success('Deduction added — salary updated');
   };
 
   const handleRemoveDeduction = (id: string) => {
     removeCustomDeduction(id);
-    toast.success('Deduction removed — click Recalculate to update salary');
+    recalcAfterChange();
+    toast.success('Deduction removed — salary updated');
   };
 
   // Daily/weekly salary breakdown from record
@@ -393,9 +404,9 @@ export default function StaffSalaryDetailPage() {
                   ({formatCurrency(profile?.baseSalary || 0)} / {attendanceForm.totalWorkingDays} days) x {attendanceForm.daysAbsent} absent + {attendanceForm.halfDays} half days
                 </p>
               </div>
-              <div className="mt-6 flex gap-3">
+              <div className="mt-6">
                 <Button onClick={handleSaveAttendance}>Save Attendance</Button>
-                <Button variant="outline" onClick={() => { handleSaveAttendance(); handleRecalculate(); }}>Save & Recalculate</Button>
+                <p className="text-xs text-slate-400 mt-2">Salary is automatically recalculated when you save.</p>
               </div>
             </Card>
           )}
@@ -436,8 +447,8 @@ export default function StaffSalaryDetailPage() {
                     </Button>
                   </div>
                 </div>
-                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
-                  After adding or removing deductions, click <strong>Recalculate</strong> at the top to update the salary.
+                <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-700">
+                  Salary is automatically recalculated when you add or remove deductions.
                 </div>
               </Card>
 
