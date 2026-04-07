@@ -28,6 +28,7 @@ import { MonthSelector } from '@/components/salary/MonthSelector';
 import { PayslipPreview } from '@/components/salary/PayslipPreview';
 import { useSalaryStore } from '@/store/useSalaryStore';
 import { useStaffStore } from '@/store/useStaffStore';
+import { useRoleStore, ROLE_PERMISSIONS } from '@/store/useRoleStore';
 import { formatCurrency, formatMonth, generateId } from '@/lib/utils';
 
 const statusBadgeVariant: Record<string, 'info' | 'success' | 'neutral'> = {
@@ -76,6 +77,8 @@ export default function StaffSalaryDetailPage() {
   const [confirmAction, setConfirmAction] = useState<'approve' | 'paid' | null>(null);
 
   // Subscribe to ARRAYS directly so React re-renders when store updates
+  const { role } = useRoleStore();
+  const perms = ROLE_PERMISSIONS[role];
   const staff = useStaffStore((s) => s.staff).find((s) => s.id === staffId);
   const salaryRecords = useSalaryStore((s) => s.salaryRecords);
   const salaryProfiles = useSalaryStore((s) => s.salaryProfiles);
@@ -234,17 +237,19 @@ export default function StaffSalaryDetailPage() {
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <MonthSelector value={month} onChange={(v) => { setMonth(v); setAttendanceLoaded(false); }} />
-          <Button onClick={handleRecalculate} variant="primary">
-            <HiOutlineCalculator className="w-4 h-4" />
-            Recalculate
-          </Button>
-          {record?.status === 'draft' && (
+          {perms.canCalculateSalary && (
+            <Button onClick={handleRecalculate} variant="primary">
+              <HiOutlineCalculator className="w-4 h-4" />
+              Recalculate
+            </Button>
+          )}
+          {perms.canApproveSalary && record?.status === 'draft' && (
             <Button variant="success" onClick={() => setConfirmAction('approve')}>
               <HiOutlineCheckCircle className="w-4 h-4" />
               Approve
             </Button>
           )}
-          {record && (record.status === 'draft' || record.status === 'approved') && (
+          {perms.canMarkPaid && record && (record.status === 'draft' || record.status === 'approved') && (
             <Button onClick={() => setConfirmAction('paid')}>
               <HiOutlineBanknotes className="w-4 h-4" />
               Mark Paid
@@ -390,10 +395,10 @@ export default function StaffSalaryDetailPage() {
           {activeTab === 'attendance' && (
             <Card title="Attendance Details">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
-                <Input label="Total Working Days" type="number" min={0} max={31} value={attendanceForm.totalWorkingDays} onChange={(e) => setAttendanceForm((p) => ({ ...p, totalWorkingDays: parseInt(e.target.value) || 0 }))} />
-                <Input label="Days Present" type="number" min={0} max={31} value={attendanceForm.daysPresent} onChange={(e) => setAttendanceForm((p) => ({ ...p, daysPresent: parseInt(e.target.value) || 0 }))} />
-                <Input label="Days Absent" type="number" min={0} max={31} value={attendanceForm.daysAbsent} onChange={(e) => setAttendanceForm((p) => ({ ...p, daysAbsent: parseInt(e.target.value) || 0 }))} />
-                <Input label="Half Days" type="number" min={0} max={31} value={attendanceForm.halfDays} onChange={(e) => setAttendanceForm((p) => ({ ...p, halfDays: parseInt(e.target.value) || 0 }))} />
+                <Input label="Total Working Days" type="number" min={0} max={31} value={attendanceForm.totalWorkingDays} onChange={(e) => setAttendanceForm((p) => ({ ...p, totalWorkingDays: parseInt(e.target.value) || 0 }))} disabled={!perms.canEditDeductions} />
+                <Input label="Days Present" type="number" min={0} max={31} value={attendanceForm.daysPresent} onChange={(e) => setAttendanceForm((p) => ({ ...p, daysPresent: parseInt(e.target.value) || 0 }))} disabled={!perms.canEditDeductions} />
+                <Input label="Days Absent" type="number" min={0} max={31} value={attendanceForm.daysAbsent} onChange={(e) => setAttendanceForm((p) => ({ ...p, daysAbsent: parseInt(e.target.value) || 0 }))} disabled={!perms.canEditDeductions} />
+                <Input label="Half Days" type="number" min={0} max={31} value={attendanceForm.halfDays} onChange={(e) => setAttendanceForm((p) => ({ ...p, halfDays: parseInt(e.target.value) || 0 }))} disabled={!perms.canEditDeductions} />
               </div>
               <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg max-w-2xl">
                 <div className="flex justify-between">
@@ -404,10 +409,12 @@ export default function StaffSalaryDetailPage() {
                   ({formatCurrency(profile?.baseSalary || 0)} / {attendanceForm.totalWorkingDays} days) x {attendanceForm.daysAbsent} absent + {attendanceForm.halfDays} half days
                 </p>
               </div>
-              <div className="mt-6">
-                <Button onClick={handleSaveAttendance}>Save Attendance</Button>
-                <p className="text-xs text-slate-400 mt-2">Salary is automatically recalculated when you save.</p>
-              </div>
+              {perms.canEditDeductions && (
+                <div className="mt-6">
+                  <Button onClick={handleSaveAttendance}>Save Attendance</Button>
+                  <p className="text-xs text-slate-400 mt-2">Salary is automatically recalculated when you save.</p>
+                </div>
+              )}
             </Card>
           )}
 
@@ -422,9 +429,11 @@ export default function StaffSalaryDetailPage() {
                         <span className="text-sm font-medium text-slate-700">{ded.label}</span>
                         <div className="flex items-center gap-3">
                           <span className="text-sm font-medium text-red-600">{formatCurrency(ded.amount)}</span>
-                          <button onClick={() => handleRemoveDeduction(ded.id)} className="p-1 text-slate-400 hover:text-red-600">
-                            <HiOutlineTrash className="w-4 h-4" />
-                          </button>
+                          {perms.canEditDeductions && (
+                            <button onClick={() => handleRemoveDeduction(ded.id)} className="p-1 text-slate-400 hover:text-red-600">
+                              <HiOutlineTrash className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -432,21 +441,23 @@ export default function StaffSalaryDetailPage() {
                 ) : (
                   <p className="text-sm text-slate-400 mb-6">No custom deductions for this month.</p>
                 )}
-                <div className="border-t border-slate-200 pt-4">
-                  <h4 className="text-sm font-medium text-slate-700 mb-3">Add Deduction</h4>
-                  <div className="flex items-end gap-3">
-                    <div className="flex-1">
-                      <Input label="Label" placeholder="e.g., Uniform, Late Fine, PF" value={newDeductionLabel} onChange={(e) => setNewDeductionLabel(e.target.value)} />
+                {perms.canEditDeductions && (
+                  <div className="border-t border-slate-200 pt-4">
+                    <h4 className="text-sm font-medium text-slate-700 mb-3">Add Deduction</h4>
+                    <div className="flex items-end gap-3">
+                      <div className="flex-1">
+                        <Input label="Label" placeholder="e.g., Uniform, Late Fine, PF" value={newDeductionLabel} onChange={(e) => setNewDeductionLabel(e.target.value)} />
+                      </div>
+                      <div className="w-40">
+                        <Input label="Amount (₹)" type="number" min={0} value={newDeductionAmount} onChange={(e) => setNewDeductionAmount(e.target.value)} />
+                      </div>
+                      <Button onClick={handleAddDeduction} size="md">
+                        <HiOutlinePlusCircle className="w-4 h-4" />
+                        Add
+                      </Button>
                     </div>
-                    <div className="w-40">
-                      <Input label="Amount (₹)" type="number" min={0} value={newDeductionAmount} onChange={(e) => setNewDeductionAmount(e.target.value)} />
-                    </div>
-                    <Button onClick={handleAddDeduction} size="md">
-                      <HiOutlinePlusCircle className="w-4 h-4" />
-                      Add
-                    </Button>
                   </div>
-                </div>
+                )}
                 <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-700">
                   Salary is automatically recalculated when you add or remove deductions.
                 </div>

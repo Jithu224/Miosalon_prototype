@@ -22,6 +22,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { DataTable } from '@/components/data-table/DataTable';
 import { useSalaryStore } from '@/store/useSalaryStore';
 import { useStaffStore } from '@/store/useStaffStore';
+import { useRoleStore, ROLE_PERMISSIONS } from '@/store/useRoleStore';
 import { formatCurrency, formatMonth } from '@/lib/utils';
 import { exportSalaryToCSV } from '@/lib/exportUtils';
 import { SalaryRecord } from '@/types/salary';
@@ -38,13 +39,20 @@ export default function SalaryCalculatorPage() {
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
 
   const [selectedStaffId, setSelectedStaffId] = useState('');
+  const { role, staffId: roleStaffId } = useRoleStore();
+  const perms = ROLE_PERMISSIONS[role];
   const staff = useStaffStore((s) => s.staff);
   const salaryRecords = useSalaryStore((s) => s.salaryRecords);
   const salaryProfiles = useSalaryStore((s) => s.salaryProfiles);
   const calculateAllSalaries = useSalaryStore((s) => s.calculateAllSalaries);
   const calculateSalary = useSalaryStore((s) => s.calculateSalary);
 
-  const records = useMemo(() => salaryRecords.filter((r) => r.month === month), [salaryRecords, month]);
+  // Role-based filtering: staff can only see their own record
+  const allRecords = useMemo(() => salaryRecords.filter((r) => r.month === month), [salaryRecords, month]);
+  const records = useMemo(() => {
+    if (perms.canViewAllStaff) return allRecords;
+    return allRecords.filter((r) => r.staffId === roleStaffId);
+  }, [allRecords, perms.canViewAllStaff, roleStaffId]);
   const configuredStaff = useMemo(() => staff.filter((s) => s.isActive && salaryProfiles.some((p) => p.staffId === s.id)), [staff, salaryProfiles]);
 
   const staffMap = useMemo(() => {
@@ -191,41 +199,60 @@ export default function SalaryCalculatorPage() {
   }
 
   return (
-    <PageWrapper title="Salary Calculator" subtitle={formatMonth(month)}>
+    <PageWrapper title={role === 'staff' ? 'My Salary' : 'Salary Calculator'} subtitle={formatMonth(month)}>
+      {/* Role indicator banner */}
+      {role !== 'owner' && (
+        <div className={`mb-4 p-3 rounded-lg text-sm ${role === 'manager' ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' : 'bg-amber-50 border border-amber-200 text-amber-700'}`}>
+          Viewing as <strong>{ROLE_PERMISSIONS[role].label}</strong>
+          {role === 'staff' && ' — You can only view your own salary and payslip.'}
+          {role === 'manager' && ' — You can calculate and review salaries, but cannot approve or mark as paid.'}
+        </div>
+      )}
+
       {/* Top bar */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <MonthSelector value={month} onChange={setMonth} />
-        <Button onClick={handleCalculateAll}>
-          <HiOutlineCalculator className="w-4 h-4" />
-          Calculate All
-        </Button>
-        <div className="border-l border-slate-300 pl-3 flex items-center gap-2">
-          <select
-            value={selectedStaffId}
-            onChange={(e) => setSelectedStaffId(e.target.value)}
-            className="px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Select staff...</option>
-            {configuredStaff.map((s) => (
-              <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>
-            ))}
-          </select>
-          <Button variant="outline" onClick={handleCalculateIndividual} disabled={!selectedStaffId}>
-            Calculate Individual
+        {perms.canCalculateSalary && (
+          <>
+            <Button onClick={handleCalculateAll}>
+              <HiOutlineCalculator className="w-4 h-4" />
+              Calculate All
+            </Button>
+            <div className="border-l border-slate-300 pl-3 flex items-center gap-2">
+              <select
+                value={selectedStaffId}
+                onChange={(e) => setSelectedStaffId(e.target.value)}
+                className="px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select staff...</option>
+                {configuredStaff.map((s) => (
+                  <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>
+                ))}
+              </select>
+              <Button variant="outline" onClick={handleCalculateIndividual} disabled={!selectedStaffId}>
+                Calculate Individual
+              </Button>
+            </div>
+          </>
+        )}
+        {perms.canExport && (
+          <Button variant="outline" onClick={handleExportCSV} disabled={records.length === 0}>
+            <HiOutlineArrowDownTray className="w-4 h-4" />
+            Export CSV
           </Button>
-        </div>
-        <Button variant="outline" onClick={handleExportCSV} disabled={records.length === 0}>
-          <HiOutlineArrowDownTray className="w-4 h-4" />
-          Export CSV
-        </Button>
-        <Button variant="outline" href="/salary-calculator/setup">
-          <HiOutlineCog6Tooth className="w-4 h-4" />
-          Setup
-        </Button>
-        <Button variant="outline" href="/salary-calculator/advances">
-          <HiOutlineBanknotes className="w-4 h-4" />
-          Advances
-        </Button>
+        )}
+        {perms.canConfigureSalary && (
+          <Button variant="outline" href="/salary-calculator/setup">
+            <HiOutlineCog6Tooth className="w-4 h-4" />
+            Setup
+          </Button>
+        )}
+        {perms.canRecordAdvances && (
+          <Button variant="outline" href="/salary-calculator/advances">
+            <HiOutlineBanknotes className="w-4 h-4" />
+            Advances
+          </Button>
+        )}
       </div>
 
       {/* Stat Cards */}
