@@ -25,6 +25,9 @@ interface FormData {
   payStructure: SalaryProfile['payStructure'];
   baseSalary: number;
   payCycle: SalaryProfile['payCycle'];
+  customPeriodStart: number;
+  customPeriodEnd: number;
+  weeklyPayDay: number;
   bankName: string;
   accountNumber: string;
   ifscCode: string;
@@ -35,6 +38,9 @@ const defaultFormData: FormData = {
   payStructure: 'fixed-only',
   baseSalary: 0,
   payCycle: 'monthly',
+  customPeriodStart: 26,
+  customPeriodEnd: 25,
+  weeklyPayDay: 1,
   bankName: '',
   accountNumber: '',
   ifscCode: '',
@@ -55,8 +61,20 @@ const payStructureOptions = [
 ];
 
 const payCycleOptions = [
-  { value: 'monthly', label: 'Monthly' },
-  { value: 'custom', label: 'Custom' },
+  { value: 'monthly', label: 'Monthly (1st - 30th/31st)' },
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'custom', label: 'Custom Period' },
+];
+
+const weekDayOptions = [
+  { value: '1', label: 'Monday' },
+  { value: '2', label: 'Tuesday' },
+  { value: '3', label: 'Wednesday' },
+  { value: '4', label: 'Thursday' },
+  { value: '5', label: 'Friday' },
+  { value: '6', label: 'Saturday' },
+  { value: '0', label: 'Sunday' },
 ];
 
 export default function SalarySetupPage() {
@@ -100,6 +118,9 @@ export default function SalarySetupPage() {
         payStructure: profile.payStructure,
         baseSalary: profile.baseSalary,
         payCycle: profile.payCycle,
+        customPeriodStart: profile.customPeriodStart || 26,
+        customPeriodEnd: profile.customPeriodEnd || 25,
+        weeklyPayDay: profile.weeklyPayDay ?? 1,
         bankName: profile.bankName || '',
         accountNumber: profile.accountNumber || '',
         ifscCode: profile.ifscCode || '',
@@ -131,6 +152,9 @@ export default function SalarySetupPage() {
       payStructure: formData.payStructure,
       baseSalary: formData.payStructure === 'commission-only' ? 0 : formData.baseSalary,
       payCycle: formData.payCycle,
+      customPeriodStart: formData.payCycle === 'custom' ? formData.customPeriodStart : undefined,
+      customPeriodEnd: formData.payCycle === 'custom' ? formData.customPeriodEnd : undefined,
+      weeklyPayDay: formData.payCycle === 'weekly' ? formData.weeklyPayDay : undefined,
       bankName: formData.bankName || undefined,
       accountNumber: formData.accountNumber || undefined,
       ifscCode: formData.ifscCode || undefined,
@@ -215,7 +239,15 @@ export default function SalarySetupPage() {
       cell: ({ row }) => {
         const profile = salaryProfiles.find((p) => p.staffId === row.original.id);
         if (!profile) return <span className="text-slate-400 text-sm">-</span>;
-        return <span className="text-sm capitalize">{profile.payCycle}</span>;
+        let label = profile.payCycle;
+        if (profile.payCycle === 'custom' && profile.customPeriodStart && profile.customPeriodEnd) {
+          label = `${profile.customPeriodStart}th - ${profile.customPeriodEnd}th`;
+        }
+        if (profile.payCycle === 'weekly' && profile.weeklyPayDay !== undefined) {
+          const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+          label = `Weekly (${days[profile.weeklyPayDay]})`;
+        }
+        return <span className="text-sm capitalize">{label}</span>;
       },
     },
     {
@@ -317,6 +349,60 @@ export default function SalarySetupPage() {
               setFormData((prev) => ({ ...prev, payCycle: e.target.value as FormData['payCycle'] }))
             }
           />
+
+          {/* Custom Period Fields */}
+          {formData.payCycle === 'custom' && (
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-3">
+              <p className="text-xs font-medium text-blue-700">Define your custom pay period</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Period Start Day"
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={formData.customPeriodStart}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, customPeriodStart: parseInt(e.target.value) || 1 }))}
+                  helperText="Day of month (1-31)"
+                />
+                <Input
+                  label="Period End Day"
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={formData.customPeriodEnd}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, customPeriodEnd: parseInt(e.target.value) || 28 }))}
+                  helperText="Day of next month (1-31)"
+                />
+              </div>
+              <p className="text-xs text-blue-600">
+                e.g., Start: 26, End: 25 means salary covers 26th of this month to 25th of next month
+              </p>
+            </div>
+          )}
+
+          {/* Weekly Pay Day */}
+          {formData.payCycle === 'weekly' && (
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+              <Select
+                label="Pay Week Starts On"
+                options={weekDayOptions}
+                value={String(formData.weeklyPayDay)}
+                onChange={(e) => setFormData((prev) => ({ ...prev, weeklyPayDay: parseInt(e.target.value) }))}
+              />
+              <p className="text-xs text-emerald-600 mt-2">
+                Salary is calculated for each 7-day period starting on this day
+              </p>
+            </div>
+          )}
+
+          {/* Daily info */}
+          {formData.payCycle === 'daily' && (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-sm text-amber-700">
+                Salary will be calculated per working day. Base salary represents the daily rate.
+              </p>
+            </div>
+          )}
 
           <div className="border-t border-slate-200 pt-4 mt-4">
             <p className="text-sm font-medium text-slate-700 mb-3">Bank Details (Optional)</p>

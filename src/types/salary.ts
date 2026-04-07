@@ -19,9 +19,10 @@ export interface SalaryProfile {
   employmentType: 'full-time' | 'part-time' | 'contract' | 'daily-wage';
   payStructure: 'fixed-only' | 'fixed-commission' | 'commission-only' | 'daily-wage';
   baseSalary: number;
-  payCycle: 'monthly' | 'custom';
+  payCycle: 'monthly' | 'daily' | 'weekly' | 'custom';
   customPeriodStart?: number; // day of month (e.g., 26)
   customPeriodEnd?: number;   // day of month (e.g., 25)
+  weeklyPayDay?: number;      // 0=Sunday, 1=Monday ... 6=Saturday
   bankName?: string;
   accountNumber?: string;
   ifscCode?: string;
