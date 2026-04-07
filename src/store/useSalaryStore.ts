@@ -165,12 +165,34 @@ export const useSalaryStore = create<SalaryStore>()(
       addSalaryRecord: (record) =>
         set((s) => ({ salaryRecords: [...s.salaryRecords, record] })),
 
-      updateSalaryRecord: (id, data) =>
+      updateSalaryRecord: (id, data) => {
+        const state = get();
+        const record = state.salaryRecords.find((r) => r.id === id);
+
+        // When marking as paid, apply advance recovery to the advance ledger
+        if (data.status === 'paid' && record && record.status !== 'paid') {
+          const pendingAdvances = state.advances.filter(
+            (a) => a.staffId === record.staffId && (a.status === 'pending' || a.status === 'partial')
+          );
+          const { advances: recoveredAdvances } = calculateAdvanceRecovery(pendingAdvances);
+          if (recoveredAdvances.length > 0) {
+            set((s) => ({
+              advances: s.advances.map((a) => {
+                const recovery = recoveredAdvances.find((ra) => ra.id === a.id);
+                if (!recovery) return a;
+                const newDeducted = Math.min(a.deducted + recovery.amount, a.amount);
+                return { ...a, deducted: newDeducted, status: newDeducted >= a.amount ? 'recovered' as const : 'partial' as const };
+              }),
+            }));
+          }
+        }
+
         set((s) => ({
           salaryRecords: s.salaryRecords.map((r) =>
             r.id === id ? { ...r, ...data } : r
           ),
-        })),
+        }));
+      },
 
       getSalaryRecord: (staffId, month) =>
         get().salaryRecords.find(
@@ -236,10 +258,13 @@ export const useSalaryStore = create<SalaryStore>()(
           customDeductions: customDeds,
         });
 
-        // 8. Create SalaryRecord with status 'draft', store it
+        // 8. Create SalaryRecord — preserve status if approved/paid
         const existingRecord = state.salaryRecords.find(
           (r) => r.staffId === staffId && r.month === month
         );
+
+        // BUG FIX: Don't overwrite approved/paid records back to draft
+        const preserveStatus = existingRecord && (existingRecord.status === 'approved' || existingRecord.status === 'paid');
 
         const record: SalaryRecord = {
           id: existingRecord?.id || `sal-${month.replace('-', '')}-${staffId.replace('staff-', '')}`,
@@ -253,7 +278,7 @@ export const useSalaryStore = create<SalaryStore>()(
           deductions: result.deductions,
           totalDeductions: result.totalDeductions,
           netSalary: result.netSalary,
-          status: 'draft',
+          status: preserveStatus ? existingRecord.status : 'draft',
           calculatedAt: new Date().toISOString(),
         };
 
@@ -268,19 +293,10 @@ export const useSalaryStore = create<SalaryStore>()(
           set((s) => ({ salaryRecords: [...s.salaryRecords, record] }));
         }
 
-        // Update advance deducted amounts based on recovery
-        const { advances: recoveredAdvances } = calculateAdvanceRecovery(pendingAdvances);
-        if (recoveredAdvances.length > 0) {
-          set((s) => ({
-            advances: s.advances.map((a) => {
-              const recovery = recoveredAdvances.find((ra) => ra.id === a.id);
-              if (!recovery) return a;
-              const newDeducted = a.deducted + recovery.amount;
-              const newStatus = newDeducted >= a.amount ? 'recovered' as const : 'partial' as const;
-              return { ...a, deducted: newDeducted, status: newStatus };
-            }),
-          }));
-        }
+        // BUG FIX: Advance recovery is now DEFERRED until "Mark Paid"
+        // Calculation only SHOWS advance recovery in the salary record deductions
+        // but does NOT update the advance ledger. This makes recalculation idempotent.
+        // Advance.deducted is only updated when salary status changes to 'paid'.
 
         // 9. Return the record
         return record;

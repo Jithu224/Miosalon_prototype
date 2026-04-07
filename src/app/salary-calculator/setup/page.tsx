@@ -99,6 +99,18 @@ export default function SalarySetupPage() {
   const handleSave = () => {
     if (!selectedStaff) return;
 
+    // Form validation
+    if (formData.payStructure !== 'commission-only') {
+      if (formData.baseSalary < 0) {
+        toast.error('Base salary cannot be negative');
+        return;
+      }
+      if (formData.baseSalary === 0) {
+        toast.error('Base salary is required for this pay structure');
+        return;
+      }
+    }
+
     const profileData: SalaryProfile = {
       staffId: selectedStaff.id,
       employmentType: formData.employmentType,

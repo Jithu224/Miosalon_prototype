@@ -35,7 +35,7 @@ const statusBadgeVariant: Record<string, 'info' | 'success' | 'neutral'> = {
 export default function SalaryCalculatorPage() {
   const hydrated = useHydration();
   const router = useRouter();
-  const [month, setMonth] = useState('2026-04');
+  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
 
   const [selectedStaffId, setSelectedStaffId] = useState('');
   const staff = useStaffStore((s) => s.staff);

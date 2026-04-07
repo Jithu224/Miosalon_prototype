@@ -23,6 +23,7 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Tabs } from '@/components/ui/Tabs';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { MonthSelector } from '@/components/salary/MonthSelector';
 import { PayslipPreview } from '@/components/salary/PayslipPreview';
 import { useSalaryStore } from '@/store/useSalaryStore';
@@ -57,7 +58,7 @@ export default function StaffSalaryDetailPage() {
   const searchParams = useSearchParams();
 
   const staffId = params.staffId as string;
-  const initialMonth = searchParams.get('month') || '2026-04';
+  const initialMonth = searchParams.get('month') || new Date().toISOString().slice(0, 7);
 
   const [month, setMonth] = useState(initialMonth);
   const [activeTab, setActiveTab] = useState('breakdown');
@@ -72,6 +73,7 @@ export default function StaffSalaryDetailPage() {
   const [attendanceLoaded, setAttendanceLoaded] = useState(false);
 
   const payslipRef = useRef<HTMLDivElement>(null);
+  const [confirmAction, setConfirmAction] = useState<'approve' | 'paid' | null>(null);
 
   // Subscribe to ARRAYS directly so React re-renders when store updates
   const staff = useStaffStore((s) => s.staff).find((s) => s.id === staffId);
@@ -121,12 +123,14 @@ export default function StaffSalaryDetailPage() {
     if (!record) return;
     updateSalaryRecord(record.id, { status: 'approved' });
     toast.success(`Salary approved for ${staffName}`);
+    setConfirmAction(null);
   };
 
   const handleMarkPaid = () => {
     if (!record) return;
     updateSalaryRecord(record.id, { status: 'paid' });
-    toast.success(`Salary marked as paid for ${staffName}`);
+    toast.success(`Salary marked as paid for ${staffName} — advance recovery applied`);
+    setConfirmAction(null);
   };
 
   const handleSaveAttendance = () => {
@@ -224,13 +228,13 @@ export default function StaffSalaryDetailPage() {
             Recalculate
           </Button>
           {record?.status === 'draft' && (
-            <Button variant="success" onClick={handleApprove}>
+            <Button variant="success" onClick={() => setConfirmAction('approve')}>
               <HiOutlineCheckCircle className="w-4 h-4" />
               Approve
             </Button>
           )}
           {record && (record.status === 'draft' || record.status === 'approved') && (
-            <Button onClick={handleMarkPaid}>
+            <Button onClick={() => setConfirmAction('paid')}>
               <HiOutlineBanknotes className="w-4 h-4" />
               Mark Paid
             </Button>
@@ -488,6 +492,25 @@ export default function StaffSalaryDetailPage() {
           )}
         </div>
       )}
+      {/* Confirmation Dialogs */}
+      <ConfirmDialog
+        isOpen={confirmAction === 'approve'}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={handleApprove}
+        title="Approve Salary"
+        message={`Approve ${staffName}'s salary of ${record ? formatCurrency(record.netSalary) : ''} for ${formatMonth(month)}? This locks the salary from further edits.`}
+        confirmLabel="Approve"
+        variant="primary"
+      />
+      <ConfirmDialog
+        isOpen={confirmAction === 'paid'}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={handleMarkPaid}
+        title="Mark as Paid"
+        message={`Mark ${staffName}'s salary as paid? This will also deduct any advance recovery from their advance balance.`}
+        confirmLabel="Mark Paid"
+        variant="primary"
+      />
     </PageWrapper>
   );
 }
