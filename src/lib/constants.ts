@@ -8,6 +8,7 @@ import {
   HiOutlineChatBubbleLeft,
   HiOutlineGlobeAlt,
   HiOutlineCog6Tooth,
+  HiOutlineCalculator,
 } from 'react-icons/hi2';
 
 export const NAV_ITEMS = [
@@ -16,6 +17,7 @@ export const NAV_ITEMS = [
   { label: 'Dashboard', href: '/', icon: HiOutlineHome },
   { label: 'Customers', href: '/clients', icon: HiOutlineUsers },
   { label: 'Staff', href: '/staff', icon: HiOutlineUserGroup },
+  { label: 'Salary', href: '/salary-calculator', icon: HiOutlineCalculator },
   { label: 'Campaigns', href: '/marketing', icon: HiOutlineMegaphone },
   { label: 'Feedback', href: '/feedback', icon: HiOutlineChatBubbleLeft },
   { label: 'Online Booking', href: '/online-booking', icon: HiOutlineGlobeAlt },

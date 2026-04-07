@@ -326,7 +326,7 @@ export default function QuickSalePage() {
                   {lineItems.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="px-3 py-10 text-center text-slate-400">
-                        No items added yet. Click "Add Items" to add services or products.
+                        No items added yet. Click Add Items to add services or products.
                       </td>
                     </tr>
                   ) : (

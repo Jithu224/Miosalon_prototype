@@ -57,3 +57,9 @@ export function getInitials(name: string): string {
 export function generateInvoiceNumber(count: number): string {
   return `INV-${String(count).padStart(5, '0')}`;
 }
+
+export function formatMonth(month: string): string {
+  const [year, m] = month.split('-');
+  const date = new Date(parseInt(year), parseInt(m) - 1);
+  return new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' }).format(date);
+}
