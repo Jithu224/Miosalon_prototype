@@ -38,10 +38,10 @@ export default function SalaryCalculatorPage() {
   const [month, setMonth] = useState('2026-04');
 
   const staff = useStaffStore((s) => s.staff);
-  const getSalaryRecordsByMonth = useSalaryStore((s) => s.getSalaryRecordsByMonth);
+  const salaryRecords = useSalaryStore((s) => s.salaryRecords);
   const calculateAllSalaries = useSalaryStore((s) => s.calculateAllSalaries);
 
-  const records = useMemo(() => getSalaryRecordsByMonth(month), [getSalaryRecordsByMonth, month]);
+  const records = useMemo(() => salaryRecords.filter((r) => r.month === month), [salaryRecords, month]);
 
   const staffMap = useMemo(() => {
     const map: Record<string, { name: string; avatar?: string; color: string }> = {};
