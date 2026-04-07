@@ -37,11 +37,15 @@ export default function SalaryCalculatorPage() {
   const router = useRouter();
   const [month, setMonth] = useState('2026-04');
 
+  const [selectedStaffId, setSelectedStaffId] = useState('');
   const staff = useStaffStore((s) => s.staff);
   const salaryRecords = useSalaryStore((s) => s.salaryRecords);
+  const salaryProfiles = useSalaryStore((s) => s.salaryProfiles);
   const calculateAllSalaries = useSalaryStore((s) => s.calculateAllSalaries);
+  const calculateSalary = useSalaryStore((s) => s.calculateSalary);
 
   const records = useMemo(() => salaryRecords.filter((r) => r.month === month), [salaryRecords, month]);
+  const configuredStaff = useMemo(() => staff.filter((s) => s.isActive && salaryProfiles.some((p) => p.staffId === s.id)), [staff, salaryProfiles]);
 
   const staffMap = useMemo(() => {
     const map: Record<string, { name: string; avatar?: string; color: string }> = {};
@@ -67,6 +71,17 @@ export default function SalaryCalculatorPage() {
   const handleCalculateAll = () => {
     const results = calculateAllSalaries(month);
     toast.success(`Calculated salaries for ${results.length} staff members`);
+  };
+
+  const handleCalculateIndividual = () => {
+    if (!selectedStaffId) { toast.error('Select a staff member first'); return; }
+    const result = calculateSalary(selectedStaffId, month);
+    if (result) {
+      const s = staff.find((st) => st.id === selectedStaffId);
+      toast.success(`Salary calculated for ${s ? s.firstName + ' ' + s.lastName : 'staff'}`);
+    } else {
+      toast.error('Could not calculate — check salary profile');
+    }
   };
 
   const handleExportCSV = () => {
@@ -178,12 +193,27 @@ export default function SalaryCalculatorPage() {
   return (
     <PageWrapper title="Salary Calculator" subtitle={formatMonth(month)}>
       {/* Top bar */}
-      <div className="flex flex-wrap items-center gap-3 mb-6">
+      <div className="flex flex-wrap items-center gap-3 mb-4">
         <MonthSelector value={month} onChange={setMonth} />
         <Button onClick={handleCalculateAll}>
           <HiOutlineCalculator className="w-4 h-4" />
           Calculate All
         </Button>
+        <div className="border-l border-slate-300 pl-3 flex items-center gap-2">
+          <select
+            value={selectedStaffId}
+            onChange={(e) => setSelectedStaffId(e.target.value)}
+            className="px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Select staff...</option>
+            {configuredStaff.map((s) => (
+              <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>
+            ))}
+          </select>
+          <Button variant="outline" onClick={handleCalculateIndividual} disabled={!selectedStaffId}>
+            Calculate Individual
+          </Button>
+        </div>
         <Button variant="outline" onClick={handleExportCSV} disabled={records.length === 0}>
           <HiOutlineArrowDownTray className="w-4 h-4" />
           Export CSV
