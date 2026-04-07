@@ -239,7 +239,7 @@ export default function SalarySetupPage() {
       cell: ({ row }) => {
         const profile = salaryProfiles.find((p) => p.staffId === row.original.id);
         if (!profile) return <span className="text-slate-400 text-sm">-</span>;
-        let label = profile.payCycle;
+        let label: string = profile.payCycle;
         if (profile.payCycle === 'custom' && profile.customPeriodStart && profile.customPeriodEnd) {
           label = `${profile.customPeriodStart}th - ${profile.customPeriodEnd}th`;
         }
