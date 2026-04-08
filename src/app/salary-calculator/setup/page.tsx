@@ -27,6 +27,8 @@ interface FormData {
   payCycle: SalaryProfile['payCycle'];
   customPeriodStart: number;
   customPeriodEnd: number;
+  customStartDate: string;
+  customEndDate: string;
   weeklyPayDay: number;
   bankName: string;
   accountNumber: string;
@@ -40,6 +42,8 @@ const defaultFormData: FormData = {
   payCycle: 'monthly',
   customPeriodStart: 26,
   customPeriodEnd: 25,
+  customStartDate: '',
+  customEndDate: '',
   weeklyPayDay: 1,
   bankName: '',
   accountNumber: '',
@@ -120,6 +124,8 @@ export default function SalarySetupPage() {
         payCycle: profile.payCycle,
         customPeriodStart: profile.customPeriodStart || 26,
         customPeriodEnd: profile.customPeriodEnd || 25,
+        customStartDate: profile.customStartDate || '',
+        customEndDate: profile.customEndDate || '',
         weeklyPayDay: profile.weeklyPayDay ?? 1,
         bankName: profile.bankName || '',
         accountNumber: profile.accountNumber || '',
@@ -154,6 +160,8 @@ export default function SalarySetupPage() {
       payCycle: formData.payCycle,
       customPeriodStart: formData.payCycle === 'custom' ? formData.customPeriodStart : undefined,
       customPeriodEnd: formData.payCycle === 'custom' ? formData.customPeriodEnd : undefined,
+      customStartDate: formData.payCycle === 'custom' ? formData.customStartDate : undefined,
+      customEndDate: formData.payCycle === 'custom' ? formData.customEndDate : undefined,
       weeklyPayDay: formData.payCycle === 'weekly' ? formData.weeklyPayDay : undefined,
       bankName: formData.bankName || undefined,
       accountNumber: formData.accountNumber || undefined,
@@ -352,30 +360,52 @@ export default function SalarySetupPage() {
 
           {/* Custom Period Fields */}
           {formData.payCycle === 'custom' && (
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-3">
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">
               <p className="text-xs font-medium text-blue-700">Define your custom pay period</p>
-              <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="Period Start Day"
-                  type="number"
-                  min={1}
-                  max={31}
-                  value={formData.customPeriodStart}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, customPeriodStart: parseInt(e.target.value) || 1 }))}
-                  helperText="Day of month (1-31)"
-                />
-                <Input
-                  label="Period End Day"
-                  type="number"
-                  min={1}
-                  max={31}
-                  value={formData.customPeriodEnd}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, customPeriodEnd: parseInt(e.target.value) || 28 }))}
-                  helperText="Day of next month (1-31)"
-                />
+
+              {/* Calendar date pickers */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-slate-700">Start Date</label>
+                  <input
+                    type="date"
+                    value={formData.customStartDate}
+                    onChange={(e) => {
+                      const date = e.target.value;
+                      const day = date ? new Date(date).getDate() : 26;
+                      setFormData((prev) => ({ ...prev, customStartDate: date, customPeriodStart: day }));
+                    }}
+                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                  />
+                  <p className="text-xs text-slate-500">Pay period begins on this date</p>
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-slate-700">End Date</label>
+                  <input
+                    type="date"
+                    value={formData.customEndDate}
+                    onChange={(e) => {
+                      const date = e.target.value;
+                      const day = date ? new Date(date).getDate() : 25;
+                      setFormData((prev) => ({ ...prev, customEndDate: date, customPeriodEnd: day }));
+                    }}
+                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                  />
+                  <p className="text-xs text-slate-500">Pay period ends on this date</p>
+                </div>
               </div>
+
+              {/* Show derived recurring pattern */}
+              {formData.customStartDate && formData.customEndDate && (
+                <div className="p-3 bg-white rounded-lg border border-blue-100">
+                  <p className="text-sm text-blue-800">
+                    <span className="font-medium">Recurring pattern:</span> {formData.customPeriodStart}th of each month to {formData.customPeriodEnd}th of next month
+                  </p>
+                </div>
+              )}
+
               <p className="text-xs text-blue-600">
-                e.g., Start: 26, End: 25 means salary covers 26th of this month to 25th of next month
+                Select start and end dates. The system will use these day-of-month values for recurring monthly cycles (e.g., 26th to 25th).
               </p>
             </div>
           )}

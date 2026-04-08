@@ -20,8 +20,10 @@ export interface SalaryProfile {
   payStructure: 'fixed-only' | 'fixed-commission' | 'commission-only' | 'daily-wage';
   baseSalary: number;
   payCycle: 'monthly' | 'daily' | 'weekly' | 'custom';
-  customPeriodStart?: number; // day of month (e.g., 26)
-  customPeriodEnd?: number;   // day of month (e.g., 25)
+  customPeriodStart?: number;  // day of month (e.g., 26)
+  customPeriodEnd?: number;    // day of month (e.g., 25)
+  customStartDate?: string;   // full date "2026-04-26" for calendar picker
+  customEndDate?: string;     // full date "2026-05-25" for calendar picker
   weeklyPayDay?: number;      // 0=Sunday, 1=Monday ... 6=Saturday
   bankName?: string;
   accountNumber?: string;
