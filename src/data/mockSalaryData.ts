@@ -200,14 +200,14 @@ export const mockIncentiveRules: IncentiveRule[] = [
 
 // ── Attendance Entries (April 2026) ────────────────────────────────────────────
 export const mockAttendance: AttendanceEntry[] = [
-  { staffId: 'staff-1', month: '2026-04', totalWorkingDays: 26, daysPresent: 24, daysAbsent: 2, halfDays: 0 },
-  { staffId: 'staff-2', month: '2026-04', totalWorkingDays: 26, daysPresent: 26, daysAbsent: 0, halfDays: 0 },
-  { staffId: 'staff-3', month: '2026-04', totalWorkingDays: 26, daysPresent: 25, daysAbsent: 1, halfDays: 0 },
-  { staffId: 'staff-4', month: '2026-04', totalWorkingDays: 26, daysPresent: 24, daysAbsent: 1, halfDays: 2 },
-  { staffId: 'staff-5', month: '2026-04', totalWorkingDays: 26, daysPresent: 23, daysAbsent: 2, halfDays: 1 },
-  { staffId: 'staff-6', month: '2026-04', totalWorkingDays: 26, daysPresent: 26, daysAbsent: 0, halfDays: 0 },
-  { staffId: 'staff-7', month: '2026-04', totalWorkingDays: 26, daysPresent: 26, daysAbsent: 0, halfDays: 0 },
-  { staffId: 'staff-8', month: '2026-04', totalWorkingDays: 26, daysPresent: 25, daysAbsent: 1, halfDays: 0 },
+  { staffId: 'staff-1', month: '2026-04', totalWorkingDays: 26, daysPresent: 24, daysAbsent: 2, halfDays: 0, absentDates: ['2026-04-03', '2026-04-18'], halfDayDates: [] },
+  { staffId: 'staff-2', month: '2026-04', totalWorkingDays: 26, daysPresent: 26, daysAbsent: 0, halfDays: 0, absentDates: [], halfDayDates: [] },
+  { staffId: 'staff-3', month: '2026-04', totalWorkingDays: 26, daysPresent: 25, daysAbsent: 1, halfDays: 0, absentDates: ['2026-04-10'], halfDayDates: [] },
+  { staffId: 'staff-4', month: '2026-04', totalWorkingDays: 26, daysPresent: 24, daysAbsent: 1, halfDays: 2, absentDates: ['2026-04-07'], halfDayDates: ['2026-04-14', '2026-04-21'] },
+  { staffId: 'staff-5', month: '2026-04', totalWorkingDays: 26, daysPresent: 23, daysAbsent: 2, halfDays: 1, absentDates: ['2026-04-05', '2026-04-22'], halfDayDates: ['2026-04-15'] },
+  { staffId: 'staff-6', month: '2026-04', totalWorkingDays: 26, daysPresent: 26, daysAbsent: 0, halfDays: 0, absentDates: [], halfDayDates: [] },
+  { staffId: 'staff-7', month: '2026-04', totalWorkingDays: 26, daysPresent: 26, daysAbsent: 0, halfDays: 0, absentDates: [], halfDayDates: [] },
+  { staffId: 'staff-8', month: '2026-04', totalWorkingDays: 26, daysPresent: 25, daysAbsent: 1, halfDays: 0, absentDates: ['2026-04-16'], halfDayDates: [] },
 ];
 
 // ── Custom Deductions (April 2026) ─────────────────────────────────────────────

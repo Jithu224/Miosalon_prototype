@@ -11,6 +11,7 @@ import { useClientStore } from '@/store/useClientStore';
 import { useInvoiceStore } from '@/store/useInvoiceStore';
 import { useStaffStore } from '@/store/useStaffStore';
 import { useServiceStore } from '@/store/useServiceStore';
+import { useSalaryStore } from '@/store/useSalaryStore';
 import { useHydration } from '@/hooks/useHydration';
 import { formatCurrency, formatTime } from '@/lib/utils';
 import { Badge } from '@/components/ui/Badge';
@@ -56,6 +57,17 @@ export default function DashboardPage() {
   const invoices = useInvoiceStore((s) => s.invoices);
   const staff = useStaffStore((s) => s.staff);
   const services = useServiceStore((s) => s.services);
+  const attendanceEntries = useSalaryStore((s) => s.attendanceEntries);
+
+  const currentMonth = '2026-04';
+  const attendanceSummary = useMemo(() => {
+    const monthEntries = attendanceEntries.filter((a) => a.month === currentMonth);
+    const totalStaff = monthEntries.length;
+    const totalPresent = monthEntries.reduce((s, a) => s + a.daysPresent, 0);
+    const totalAbsent = monthEntries.reduce((s, a) => s + a.daysAbsent, 0);
+    const fullAttendance = monthEntries.filter((a) => a.daysAbsent === 0 && a.halfDays === 0).length;
+    return { totalStaff, totalPresent, totalAbsent, fullAttendance };
+  }, [attendanceEntries]);
 
   const todayStr = '2026-04-06';
   const yesterdayStr = '2026-04-05';
@@ -259,6 +271,65 @@ export default function DashboardPage() {
             <RevenueChart data={revenueData} />
           </Card>
         </div>
+
+        {/* Staff Attendance Overview */}
+        <Card title="Staff Attendance — April 2026">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+              <p className="text-xl font-bold text-blue-900">{attendanceSummary.totalStaff}</p>
+              <p className="text-xs text-blue-600">Staff Tracked</p>
+            </div>
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-center">
+              <p className="text-xl font-bold text-emerald-900">{attendanceSummary.totalPresent}</p>
+              <p className="text-xs text-emerald-600">Total Present Days</p>
+            </div>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+              <p className="text-xl font-bold text-red-900">{attendanceSummary.totalAbsent}</p>
+              <p className="text-xs text-red-600">Total Absent Days</p>
+            </div>
+            <div className="bg-violet-50 border border-violet-200 rounded-lg p-3 text-center">
+              <p className="text-xl font-bold text-violet-900">{attendanceSummary.fullAttendance}</p>
+              <p className="text-xs text-violet-600">Full Attendance</p>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100">
+                  <th className="text-left py-2 px-4 text-slate-500 font-medium text-xs">Staff</th>
+                  <th className="text-right py-2 px-4 text-slate-500 font-medium text-xs">Present</th>
+                  <th className="text-right py-2 px-4 text-slate-500 font-medium text-xs">Absent</th>
+                  <th className="text-right py-2 px-4 text-slate-500 font-medium text-xs">Half</th>
+                  <th className="text-left py-2 px-4 text-slate-500 font-medium text-xs">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {attendanceEntries
+                  .filter((a) => a.month === currentMonth)
+                  .map((a) => {
+                    const member = staff.find((s) => s.id === a.staffId);
+                    const name = member ? `${member.firstName} ${member.lastName}` : a.staffId;
+                    const perfect = a.daysAbsent === 0 && a.halfDays === 0;
+                    return (
+                      <tr key={a.staffId} className="border-b border-slate-50 hover:bg-slate-50">
+                        <td className="py-2 px-4 font-medium text-slate-900">{name}</td>
+                        <td className="py-2 px-4 text-right text-emerald-600">{a.daysPresent}</td>
+                        <td className="py-2 px-4 text-right text-red-600">{a.daysAbsent}</td>
+                        <td className="py-2 px-4 text-right text-amber-600">{a.halfDays}</td>
+                        <td className="py-2 px-4">
+                          {perfect ? (
+                            <span className="text-xs px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full">Full</span>
+                          ) : (
+                            <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-full">{a.daysAbsent}d absent</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
 
         {/* Today's Appointments Table */}
         <Card title="Today's Appointments" padding={false}>

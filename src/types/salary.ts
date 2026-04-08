@@ -65,6 +65,8 @@ export interface AttendanceEntry {
   daysPresent: number;
   daysAbsent: number;
   halfDays: number;
+  absentDates?: string[];   // ["2026-04-03", "2026-04-18"] — specific dates picked via calendar
+  halfDayDates?: string[];  // ["2026-04-12"] — dates marked as half-day
 }
 
 export interface SalaryEarning {

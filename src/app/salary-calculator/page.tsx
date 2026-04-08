@@ -1,15 +1,13 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ColumnDef } from '@tanstack/react-table';
 import toast from 'react-hot-toast';
 import {
   HiOutlineCalculator,
   HiOutlineArrowDownTray,
-  HiOutlineCog6Tooth,
-  HiOutlineBanknotes,
-  HiOutlineDocumentDuplicate,
 } from 'react-icons/hi2';
 
 import { useHydration } from '@/hooks/useHydration';
@@ -75,6 +73,7 @@ export default function SalaryCalculatorPage() {
     return {
       totalOutflow: records.reduce((sum, r) => sum + r.netSalary, 0),
       totalCommissions: records.reduce((sum, r) => sum + r.commission, 0),
+      totalIncentives: records.reduce((sum, r) => sum + r.incentives.reduce((s, i) => s + i.amount, 0), 0),
       totalDeductions: records.reduce((sum, r) => sum + r.totalDeductions, 0),
       staffCount: records.length,
       avgNetSalary: records.length > 0 ? Math.round(records.reduce((sum, r) => sum + r.netSalary, 0) / records.length) : 0,
@@ -94,6 +93,7 @@ export default function SalaryCalculatorPage() {
     return {
       totalOutflow: prevRecords.reduce((sum, r) => sum + r.netSalary, 0),
       totalCommissions: prevRecords.reduce((sum, r) => sum + r.commission, 0),
+      totalIncentives: prevRecords.reduce((sum, r) => sum + r.incentives.reduce((s, i) => s + i.amount, 0), 0),
       totalDeductions: prevRecords.reduce((sum, r) => sum + r.totalDeductions, 0),
       staffCount: prevRecords.length,
       avgNetSalary: prevRecords.length > 0 ? Math.round(prevRecords.reduce((sum, r) => sum + r.netSalary, 0) / prevRecords.length) : 0,
@@ -233,7 +233,36 @@ export default function SalaryCalculatorPage() {
         </div>
       )}
 
-      {/* Top bar */}
+      {/* Horizontal Sub-Navigation Tab Bar (matches MioSalon Reports pattern) */}
+      <div className="border-b border-slate-200 mb-6">
+        <nav className="flex gap-0 -mb-px overflow-x-auto">
+          <Link href="/salary-calculator" className="px-4 py-3 text-sm font-medium border-b-2 border-blue-600 text-blue-600 whitespace-nowrap">
+            Dashboard
+          </Link>
+          {perms.canConfigureSalary && (
+            <Link href="/salary-calculator/setup" className="px-4 py-3 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap">
+              Setup
+            </Link>
+          )}
+          {perms.canConfigureSalary && (
+            <Link href="/salary-calculator/incentives" className="px-4 py-3 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap">
+              Incentives
+            </Link>
+          )}
+          {perms.canRecordAdvances && (
+            <Link href="/salary-calculator/advances" className="px-4 py-3 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap">
+              Advances
+            </Link>
+          )}
+          {perms.canExport && records.length > 0 && (
+            <Link href={`/salary-calculator/bulk-payslips?month=${month}`} className="px-4 py-3 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap">
+              Bulk Payslips
+            </Link>
+          )}
+        </nav>
+      </div>
+
+      {/* Action bar */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <MonthSelector value={month} onChange={setMonth} />
         {perms.canCalculateSalary && (
@@ -265,29 +294,6 @@ export default function SalaryCalculatorPage() {
             Export CSV
           </Button>
         )}
-        {perms.canExport && records.length > 0 && (
-          <Button variant="outline" href={`/salary-calculator/bulk-payslips?month=${month}`}>
-            <HiOutlineDocumentDuplicate className="w-4 h-4" />
-            Bulk Payslips
-          </Button>
-        )}
-        {perms.canConfigureSalary && (
-          <Button variant="outline" href="/salary-calculator/setup">
-            <HiOutlineCog6Tooth className="w-4 h-4" />
-            Setup
-          </Button>
-        )}
-        {perms.canRecordAdvances && (
-          <Button variant="outline" href="/salary-calculator/advances">
-            <HiOutlineBanknotes className="w-4 h-4" />
-            Advances
-          </Button>
-        )}
-        {perms.canConfigureSalary && (
-          <Button variant="outline" href="/salary-calculator/incentives">
-            Incentives
-          </Button>
-        )}
       </div>
 
       {/* Stat Cards */}
@@ -295,6 +301,7 @@ export default function SalaryCalculatorPage() {
         <SalaryStatCards
           totalOutflow={stats.totalOutflow}
           totalCommissions={stats.totalCommissions}
+          totalIncentives={stats.totalIncentives}
           totalDeductions={stats.totalDeductions}
           staffCount={stats.staffCount}
         />

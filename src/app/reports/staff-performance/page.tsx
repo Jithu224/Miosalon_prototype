@@ -5,6 +5,7 @@ import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Card } from '@/components/ui/Card';
 import { StaffPerformanceChart } from '@/components/charts/StaffPerformanceChart';
 import { useStaffStore } from '@/store/useStaffStore';
+import { useSalaryStore } from '@/store/useSalaryStore';
 import { useHydration } from '@/hooks/useHydration';
 import { formatCurrency } from '@/lib/utils';
 
@@ -22,6 +23,8 @@ const hardcodedPerformance: Record<string, { revenue: number; appointments: numb
 export default function StaffPerformancePage() {
   const hydrated = useHydration();
   const staff = useStaffStore((s) => s.staff);
+  const attendanceEntries = useSalaryStore((s) => s.attendanceEntries);
+  const currentMonth = new Date().toISOString().slice(0, 7);
 
   const staffData = useMemo(
     () =>
@@ -33,6 +36,7 @@ export default function StaffPerformancePage() {
             s.commissionType === 'percentage'
               ? Math.round(perf.revenue * (s.commissionRate / 100))
               : perf.appointments * s.commissionRate;
+          const att = attendanceEntries.find((a) => a.staffId === s.id && a.month === currentMonth);
           return {
             id: s.id,
             name: `${s.firstName} ${s.lastName}`,
@@ -40,9 +44,13 @@ export default function StaffPerformancePage() {
             revenue: perf.revenue,
             appointments: perf.appointments,
             commission,
+            daysPresent: att?.daysPresent ?? '-',
+            daysAbsent: att?.daysAbsent ?? '-',
+            halfDays: att?.halfDays ?? '-',
+            totalWorkingDays: att?.totalWorkingDays ?? '-',
           };
         }),
-    [staff]
+    [staff, attendanceEntries, currentMonth]
   );
 
   const chartData = useMemo(
@@ -85,6 +93,9 @@ export default function StaffPerformancePage() {
                   <th className="text-right py-3 px-6 text-slate-500 font-medium">Appointments</th>
                   <th className="text-right py-3 px-6 text-slate-500 font-medium">Revenue</th>
                   <th className="text-right py-3 px-6 text-slate-500 font-medium">Commission</th>
+                  <th className="text-right py-3 px-6 text-slate-500 font-medium">Present</th>
+                  <th className="text-right py-3 px-6 text-slate-500 font-medium">Absent</th>
+                  <th className="text-right py-3 px-6 text-slate-500 font-medium">Half</th>
                 </tr>
               </thead>
               <tbody>
@@ -99,6 +110,9 @@ export default function StaffPerformancePage() {
                     <td className="py-3 px-6 text-right text-emerald-600 font-medium">
                       {formatCurrency(s.commission)}
                     </td>
+                    <td className="py-3 px-6 text-right text-emerald-600">{s.daysPresent}</td>
+                    <td className="py-3 px-6 text-right text-red-600">{s.daysAbsent}</td>
+                    <td className="py-3 px-6 text-right text-amber-600">{s.halfDays}</td>
                   </tr>
                 ))}
               </tbody>

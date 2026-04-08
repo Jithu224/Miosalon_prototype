@@ -71,8 +71,12 @@ export default function StaffSalaryDetailPage() {
     daysPresent: 26,
     daysAbsent: 0,
     halfDays: 0,
+    absentDates: [] as string[],
+    halfDayDates: [] as string[],
   });
   const [attendanceLoaded, setAttendanceLoaded] = useState(false);
+  const [absentDateInput, setAbsentDateInput] = useState('');
+  const [halfDayDateInput, setHalfDayDateInput] = useState('');
 
   const payslipRef = useRef<HTMLDivElement>(null);
   const [confirmAction, setConfirmAction] = useState<'approve' | 'paid' | null>(null);
@@ -106,6 +110,8 @@ export default function StaffSalaryDetailPage() {
       daysPresent: attendance.daysPresent,
       daysAbsent: attendance.daysAbsent,
       halfDays: attendance.halfDays,
+      absentDates: attendance.absentDates || [],
+      halfDayDates: attendance.halfDayDates || [],
     });
     setAttendanceLoaded(true);
   }
@@ -146,9 +152,74 @@ export default function StaffSalaryDetailPage() {
   }, [calculateSalary, staffId, month]);
 
   const handleSaveAttendance = () => {
-    setAttendanceEntry({ staffId, month, ...attendanceForm });
+    setAttendanceEntry({
+      staffId,
+      month,
+      totalWorkingDays: attendanceForm.totalWorkingDays,
+      daysPresent: attendanceForm.daysPresent,
+      daysAbsent: attendanceForm.daysAbsent,
+      halfDays: attendanceForm.halfDays,
+      absentDates: attendanceForm.absentDates,
+      halfDayDates: attendanceForm.halfDayDates,
+    });
     recalcAfterChange();
     toast.success('Attendance saved — salary updated');
+  };
+
+  // Add/remove absent date via calendar
+  const handleAddAbsentDate = (date: string) => {
+    if (!date || attendanceForm.absentDates.includes(date)) return;
+    // Don't allow same date in both absent and half-day
+    const newHalfDayDates = attendanceForm.halfDayDates.filter((d) => d !== date);
+    const newAbsentDates = [...attendanceForm.absentDates, date].sort();
+    const daysAbsent = newAbsentDates.length;
+    const halfDays = newHalfDayDates.length;
+    setAttendanceForm((p) => ({
+      ...p,
+      absentDates: newAbsentDates,
+      halfDayDates: newHalfDayDates,
+      daysAbsent,
+      halfDays,
+      daysPresent: p.totalWorkingDays - daysAbsent - halfDays,
+    }));
+  };
+
+  const handleRemoveAbsentDate = (date: string) => {
+    const newAbsentDates = attendanceForm.absentDates.filter((d) => d !== date);
+    const daysAbsent = newAbsentDates.length;
+    setAttendanceForm((p) => ({
+      ...p,
+      absentDates: newAbsentDates,
+      daysAbsent,
+      daysPresent: p.totalWorkingDays - daysAbsent - p.halfDays,
+    }));
+  };
+
+  const handleAddHalfDayDate = (date: string) => {
+    if (!date || attendanceForm.halfDayDates.includes(date)) return;
+    const newAbsentDates = attendanceForm.absentDates.filter((d) => d !== date);
+    const newHalfDayDates = [...attendanceForm.halfDayDates, date].sort();
+    const daysAbsent = newAbsentDates.length;
+    const halfDays = newHalfDayDates.length;
+    setAttendanceForm((p) => ({
+      ...p,
+      absentDates: newAbsentDates,
+      halfDayDates: newHalfDayDates,
+      daysAbsent,
+      halfDays,
+      daysPresent: p.totalWorkingDays - daysAbsent - halfDays,
+    }));
+  };
+
+  const handleRemoveHalfDayDate = (date: string) => {
+    const newHalfDayDates = attendanceForm.halfDayDates.filter((d) => d !== date);
+    const halfDays = newHalfDayDates.length;
+    setAttendanceForm((p) => ({
+      ...p,
+      halfDayDates: newHalfDayDates,
+      halfDays,
+      daysPresent: p.totalWorkingDays - p.daysAbsent - halfDays,
+    }));
   };
 
   const handleAddDeduction = () => {
@@ -422,29 +493,158 @@ export default function StaffSalaryDetailPage() {
 
           {/* TAB 2: Attendance */}
           {activeTab === 'attendance' && (
-            <Card title="Attendance Details">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
-                <Input label="Total Working Days" type="number" min={0} max={31} value={attendanceForm.totalWorkingDays} onChange={(e) => setAttendanceForm((p) => ({ ...p, totalWorkingDays: parseInt(e.target.value) || 0 }))} disabled={!perms.canEditDeductions || (record != null && record.status !== 'draft')} />
-                <Input label="Days Present" type="number" min={0} max={31} value={attendanceForm.daysPresent} onChange={(e) => setAttendanceForm((p) => ({ ...p, daysPresent: parseInt(e.target.value) || 0 }))} disabled={!perms.canEditDeductions || (record != null && record.status !== 'draft')} />
-                <Input label="Days Absent" type="number" min={0} max={31} value={attendanceForm.daysAbsent} onChange={(e) => setAttendanceForm((p) => ({ ...p, daysAbsent: parseInt(e.target.value) || 0 }))} disabled={!perms.canEditDeductions || (record != null && record.status !== 'draft')} />
-                <Input label="Half Days" type="number" min={0} max={31} value={attendanceForm.halfDays} onChange={(e) => setAttendanceForm((p) => ({ ...p, halfDays: parseInt(e.target.value) || 0 }))} disabled={!perms.canEditDeductions || (record != null && record.status !== 'draft')} />
-              </div>
-              <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg max-w-2xl">
-                <div className="flex justify-between">
-                  <span className="text-sm font-medium text-amber-800">Attendance Deduction Preview</span>
-                  <span className="text-lg font-bold text-amber-900">{formatCurrency(attendanceDeductionPreview)}</span>
+            <div className="space-y-6">
+              {/* Quick Summary Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+                  <p className="text-2xl font-bold text-blue-900">{attendanceForm.totalWorkingDays}</p>
+                  <p className="text-xs font-medium text-blue-600 mt-1">Working Days</p>
                 </div>
-                <p className="text-xs text-amber-600 mt-1">
-                  ({formatCurrency(profile?.baseSalary || 0)} / {attendanceForm.totalWorkingDays} days) x {attendanceForm.daysAbsent} absent + {attendanceForm.halfDays} half days
-                </p>
-              </div>
-              {perms.canEditDeductions && (!record || record.status === 'draft') && (
-                <div className="mt-6">
-                  <Button onClick={handleSaveAttendance}>Save Attendance</Button>
-                  <p className="text-xs text-slate-400 mt-2">Salary is automatically recalculated when you save.</p>
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center">
+                  <p className="text-2xl font-bold text-emerald-900">{attendanceForm.daysPresent}</p>
+                  <p className="text-xs font-medium text-emerald-600 mt-1">Present</p>
                 </div>
-              )}
-            </Card>
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
+                  <p className="text-2xl font-bold text-red-900">{attendanceForm.daysAbsent}</p>
+                  <p className="text-xs font-medium text-red-600 mt-1">Absent</p>
+                </div>
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
+                  <p className="text-2xl font-bold text-amber-900">{attendanceForm.halfDays}</p>
+                  <p className="text-xs font-medium text-amber-600 mt-1">Half Days</p>
+                </div>
+              </div>
+
+              {/* Input Section */}
+              <Card title="Enter Attendance">
+                {/* Working Days — direct number input */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mb-6">
+                  <Input
+                    label="Total Working Days in Month"
+                    type="number"
+                    min={0}
+                    max={31}
+                    value={attendanceForm.totalWorkingDays}
+                    onChange={(e) => {
+                      const total = parseInt(e.target.value) || 0;
+                      setAttendanceForm((p) => ({
+                        ...p,
+                        totalWorkingDays: total,
+                        daysPresent: Math.max(0, total - p.daysAbsent - p.halfDays),
+                      }));
+                    }}
+                    disabled={!perms.canEditDeductions || (record != null && record.status !== 'draft')}
+                  />
+                  <div className="flex items-end">
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2.5 w-full">
+                      <p className="text-xs text-emerald-600 font-medium">Days Present (auto-calculated)</p>
+                      <p className="text-lg font-bold text-emerald-900">{attendanceForm.daysPresent} days</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Absent Dates — calendar picker */}
+                <div className="border-t border-slate-200 pt-5 mb-6">
+                  <h4 className="text-sm font-semibold text-slate-700 mb-3">Absent Dates (pick from calendar)</h4>
+                  {perms.canEditDeductions && (!record || record.status === 'draft') && (
+                    <div className="flex items-center gap-3 mb-3">
+                      <input
+                        type="date"
+                        value={absentDateInput}
+                        onChange={(e) => setAbsentDateInput(e.target.value)}
+                        min={`${month}-01`}
+                        max={`${month}-${new Date(parseInt(month.split('-')[0]), parseInt(month.split('-')[1]), 0).getDate()}`}
+                        className="px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-400"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          handleAddAbsentDate(absentDateInput);
+                          setAbsentDateInput('');
+                        }}
+                        disabled={!absentDateInput}
+                      >
+                        + Add Absent
+                      </Button>
+                    </div>
+                  )}
+                  {attendanceForm.absentDates.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {attendanceForm.absentDates.map((date) => (
+                        <span key={date} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 border border-red-200 rounded-full text-sm text-red-700">
+                          {new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', weekday: 'short' })}
+                          {perms.canEditDeductions && (!record || record.status === 'draft') && (
+                            <button onClick={() => handleRemoveAbsentDate(date)} className="text-red-400 hover:text-red-600 ml-1">&times;</button>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-400">No absent dates marked — full attendance</p>
+                  )}
+                </div>
+
+                {/* Half-Day Dates — calendar picker */}
+                <div className="border-t border-slate-200 pt-5 mb-6">
+                  <h4 className="text-sm font-semibold text-slate-700 mb-3">Half-Day Dates (pick from calendar)</h4>
+                  {perms.canEditDeductions && (!record || record.status === 'draft') && (
+                    <div className="flex items-center gap-3 mb-3">
+                      <input
+                        type="date"
+                        value={halfDayDateInput}
+                        onChange={(e) => setHalfDayDateInput(e.target.value)}
+                        min={`${month}-01`}
+                        max={`${month}-${new Date(parseInt(month.split('-')[0]), parseInt(month.split('-')[1]), 0).getDate()}`}
+                        className="px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          handleAddHalfDayDate(halfDayDateInput);
+                          setHalfDayDateInput('');
+                        }}
+                        disabled={!halfDayDateInput}
+                      >
+                        + Add Half Day
+                      </Button>
+                    </div>
+                  )}
+                  {attendanceForm.halfDayDates.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {attendanceForm.halfDayDates.map((date) => (
+                        <span key={date} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full text-sm text-amber-700">
+                          {new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', weekday: 'short' })}
+                          {perms.canEditDeductions && (!record || record.status === 'draft') && (
+                            <button onClick={() => handleRemoveHalfDayDate(date)} className="text-amber-400 hover:text-amber-600 ml-1">&times;</button>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-400">No half-day dates marked</p>
+                  )}
+                </div>
+
+                {/* Deduction Preview */}
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg max-w-2xl">
+                  <div className="flex justify-between">
+                    <span className="text-sm font-medium text-amber-800">Attendance Deduction Preview</span>
+                    <span className="text-lg font-bold text-amber-900">{formatCurrency(attendanceDeductionPreview)}</span>
+                  </div>
+                  <p className="text-xs text-amber-600 mt-1">
+                    ({formatCurrency(profile?.baseSalary || 0)} / {attendanceForm.totalWorkingDays} days) x {attendanceForm.daysAbsent} absent + {attendanceForm.halfDays} half days x 0.5
+                  </p>
+                </div>
+
+                {perms.canEditDeductions && (!record || record.status === 'draft') && (
+                  <div className="mt-6">
+                    <Button onClick={handleSaveAttendance}>Save Attendance</Button>
+                    <p className="text-xs text-slate-400 mt-2">Salary is automatically recalculated when you save.</p>
+                  </div>
+                )}
+              </Card>
+            </div>
           )}
 
           {/* TAB 3: Deductions */}
