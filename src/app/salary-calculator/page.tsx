@@ -110,6 +110,7 @@ export default function SalaryCalculatorPage() {
     if (result) {
       const s = staff.find((st) => st.id === selectedStaffId);
       toast.success(`Salary calculated for ${s ? s.firstName + ' ' + s.lastName : 'staff'}`);
+      router.push(`/salary-calculator/${selectedStaffId}?month=${month}`);
     } else {
       toast.error('Could not calculate — check salary profile');
     }
@@ -252,8 +253,9 @@ export default function SalaryCalculatorPage() {
                   <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>
                 ))}
               </select>
-              <Button variant="outline" onClick={handleCalculateIndividual} disabled={!selectedStaffId}>
-                Calculate Individual
+              <Button variant={selectedStaffId ? 'primary' : 'outline'} onClick={handleCalculateIndividual} disabled={!selectedStaffId}>
+                <HiOutlineCalculator className="w-4 h-4" />
+                Calculate
               </Button>
             </div>
           </>
