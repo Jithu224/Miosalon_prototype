@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ColumnDef } from '@tanstack/react-table';
 import toast from 'react-hot-toast';
@@ -232,35 +231,6 @@ export default function SalaryCalculatorPage() {
           {role === 'manager' && ' — You can calculate and review salaries, but cannot approve or mark as paid.'}
         </div>
       )}
-
-      {/* Horizontal Sub-Navigation Tab Bar (matches MioSalon Reports pattern) */}
-      <div className="border-b border-slate-200 mb-6">
-        <nav className="flex gap-0 -mb-px overflow-x-auto">
-          <Link href="/salary-calculator" className="px-4 py-3 text-sm font-medium border-b-2 border-blue-600 text-blue-600 whitespace-nowrap">
-            Dashboard
-          </Link>
-          {perms.canConfigureSalary && (
-            <Link href="/salary-calculator/setup" className="px-4 py-3 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap">
-              Setup
-            </Link>
-          )}
-          {perms.canConfigureSalary && (
-            <Link href="/salary-calculator/incentives" className="px-4 py-3 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap">
-              Incentives
-            </Link>
-          )}
-          {perms.canRecordAdvances && (
-            <Link href="/salary-calculator/advances" className="px-4 py-3 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap">
-              Advances
-            </Link>
-          )}
-          {perms.canExport && records.length > 0 && (
-            <Link href={`/salary-calculator/bulk-payslips?month=${month}`} className="px-4 py-3 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap">
-              Bulk Payslips
-            </Link>
-          )}
-        </nav>
-      </div>
 
       {/* Action bar */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
